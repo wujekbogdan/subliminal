@@ -56,10 +56,11 @@ class ProviderResultStatus(Enum):
 
 @dataclass
 class ProviderResult:
-    """Result of asking a provider to list subtitles for the video."""
+    """Result of a query to a provider."""
 
     provider: str
-    video: Video
+    #: None for a download, which has no video
+    video: Video | None
     languages: set[Language]
     subtitles: list[Subtitle] = field(default_factory=list)
     status: ProviderResultStatus = ProviderResultStatus.OK
@@ -79,6 +80,11 @@ class ProviderResult:
     def outage(self) -> bool:
         """Check if the query triggered an error that requires discarding the provider."""
         return self.status == ProviderResultStatus.OUTAGE
+
+    @classmethod
+    def from_download(cls, subtitle: Subtitle, status: ProviderResultStatus) -> ProviderResult:
+        """Result of the download of a subtitle."""
+        return cls(subtitle.provider_name, None, {subtitle.language}, [subtitle], status=status)
 
 
 class ProviderPool:
@@ -105,8 +111,8 @@ class ProviderPool:
     #: Initialized providers
     initialized_providers: dict[str, Provider]
 
-    #: Discarded providers
-    discarded_providers: set[str]
+    #: Results of the queries to the providers, in the order they were made
+    results: list[ProviderResult]
 
     def __init__(
         self,
@@ -116,7 +122,17 @@ class ProviderPool:
         self.providers = providers if providers is not None else get_default_providers()
         self.provider_configs = provider_configs or {}
         self.initialized_providers = {}
-        self.discarded_providers = set()
+        self.results = []
+
+    @property
+    def discarded_providers(self) -> frozenset[str]:
+        """Providers that had an error that makes them unusable - they're discarded once the error is reported."""
+        return frozenset(r.provider for r in self.results if r.outage())
+
+    @property
+    def failed_providers(self) -> frozenset[str]:
+        """Providers that had an error, discarded or not. A superset of :attr:`discarded_providers`."""
+        return frozenset(r.provider for r in self.results if r.failure() or r.outage())
 
     def __enter__(self) -> ProviderPool:
         return self
@@ -218,9 +234,9 @@ class ProviderPool:
 
             # list subtitles
             provider_result = self.list_subtitles_provider(name, video, languages)
+            self.results.append(provider_result)
             if provider_result.outage():
                 logger.info('Discarding provider %s', name)
-                self.discarded_providers.add(name)
                 continue
 
             # add the subtitles
@@ -249,9 +265,10 @@ class ProviderPool:
             logger.exception('Bad archive for subtitle %r', subtitle)
         except DiscardingError as e:
             handle_exception(e, f'Discarding provider {subtitle.provider_name}')
-            self.discarded_providers.add(subtitle.provider_name)
-        except Exception as e:  # noqa: BLE001  # pragma: no cover
+            self.results.append(ProviderResult.from_download(subtitle, ProviderResultStatus.OUTAGE))
+        except Exception as e:  # noqa: BLE001
             handle_exception(e, f'Failed to download subtitle with provider {subtitle.provider_name}')
+            self.results.append(ProviderResult.from_download(subtitle, ProviderResultStatus.FAILURE))
 
         # check subtitle validity
         if not subtitle.is_valid():
@@ -382,10 +399,10 @@ class AsyncProviderPool(ProviderPool):
                 itertools.repeat(languages, len(self.providers)),
             )
             for provider_result in executor_map:
+                self.results.append(provider_result)
                 # discard provider that failed
                 if provider_result.outage():
                     logger.info('Discarding provider %s', provider_result.provider)
-                    self.discarded_providers.add(provider_result.provider)
                     continue
 
                 # add subtitles

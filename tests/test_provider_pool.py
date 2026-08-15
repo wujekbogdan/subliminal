@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, cast
-from unittest.mock import Mock, call
+from unittest.mock import Mock, call, patch
 
 import pytest
 from babelfish import Language  # type: ignore[import-untyped]
@@ -9,6 +9,8 @@ from babelfish import Language  # type: ignore[import-untyped]
 from subliminal.core import (
     AsyncProviderPool,
     ProviderPool,
+    ProviderResult,
+    ProviderResultStatus,
     download_best_subtitles,
     download_subtitles,
     list_subtitles,
@@ -322,6 +324,44 @@ def test_list_subtitles_discarded_provider(
     assert not pool.download_subtitle(subtitle)
 
 
+def test_list_subtitles_discarding_error_reports_failed_and_discarded(
+    movies: dict[str, Movie],
+    provider_manager: RegistrableExtensionManager,
+) -> None:
+    """A discarding error puts the provider in `failed_providers` and in `discarded_providers`."""
+    video = movies['man_of_steel']
+    languages = {Language('eng')}
+
+    pool = ProviderPool(['opensubtitlescom'])
+    # a broken mock provider raises a DiscardingError
+    cast('MockProvider', pool['opensubtitlescom']).is_broken = True
+
+    assert pool.list_subtitles(video, languages) == []
+
+    assert pool.failed_providers == {'opensubtitlescom'}
+    assert pool.discarded_providers == {'opensubtitlescom'}
+
+
+def test_list_subtitles_unknown_error_reports_failed_only(
+    movies: dict[str, Movie],
+    provider_manager: RegistrableExtensionManager,
+) -> None:
+    """An unknown error puts the provider in `failed_providers` only."""
+    video = movies['man_of_steel']
+    languages = {Language('eng')}
+
+    pool = ProviderPool(['opensubtitlescom'])
+
+    with patch.object(pool['opensubtitlescom'], 'list_subtitles', side_effect=KeyError('id')):
+        assert pool.list_subtitles(video, languages) == []
+
+    assert pool.failed_providers == {'opensubtitlescom'}
+    assert pool.discarded_providers == set()
+    assert [(r.provider, r.video, r.status) for r in pool.results] == [
+        ('opensubtitlescom', video, ProviderResultStatus.FAILURE)
+    ]
+
+
 def test_async_provider_pool_list_subtitles_discarded_providers(
     episodes: dict[str, Episode],
     provider_manager: RegistrableExtensionManager,
@@ -340,6 +380,8 @@ def test_async_provider_pool_list_subtitles_discarded_providers(
         'tvsubtitles',
     }
     assert 'opensubtitlescom' in pool.discarded_providers
+    # a discarded provider is also a failed provider
+    assert 'opensubtitlescom' in pool.failed_providers
 
 
 def test_download_subtitles_discarded_provider(
@@ -364,6 +406,44 @@ def test_download_subtitles_discarded_provider(
     assert not pool.download_subtitle(subtitle)
 
     assert 'opensubtitlescom' in pool.discarded_providers
+    # a discarded provider is also a failed provider
+    assert 'opensubtitlescom' in pool.failed_providers
+
+
+def test_download_subtitle_unknown_error_reports_failed_only(
+    movies: dict[str, Movie],
+    provider_manager: RegistrableExtensionManager,
+) -> None:
+    """An unknown error while downloading puts the provider in `failed_providers` only."""
+    video = movies['man_of_steel']
+    languages = {Language('eng')}
+
+    pool = ProviderPool(['opensubtitlescom'])
+    subtitle = pool.list_subtitles(video, languages)[0]
+
+    with patch.object(pool['opensubtitlescom'], 'download_subtitle', side_effect=KeyError('id')):
+        assert not pool.download_subtitle(subtitle)
+
+    assert pool.failed_providers == {'opensubtitlescom'}
+    assert pool.discarded_providers == set()
+
+
+def test_provider_result_from_download(
+    movies: dict[str, Movie],
+    provider_manager: RegistrableExtensionManager,
+) -> None:
+    pool = ProviderPool(['opensubtitlescom'])
+    subtitle = pool.list_subtitles(movies['man_of_steel'], {Language('eng')})[0]
+
+    result = ProviderResult.from_download(subtitle, ProviderResultStatus.OUTAGE)
+
+    assert (result.provider, result.video, result.languages, result.subtitles, result.status) == (
+        'opensubtitlescom',
+        None,
+        {Language('eng')},
+        [subtitle],
+        ProviderResultStatus.OUTAGE,
+    )
 
 
 def test_download_best_subtitles(episodes: dict[str, Episode]) -> None:
