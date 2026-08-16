@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 from zipfile import ZipFile
 
 import pytest
+from babelfish import Language  # type: ignore[import-untyped]
 
 from subliminal.exceptions import AuthenticationError, ProviderError
 from subliminal.providers.napisy24 import (
@@ -14,6 +15,8 @@ from subliminal.providers.napisy24 import (
     CatalogueRecord,
     CatalogueResponse,
     HashResponse,
+    Napisy24Subtitle,
+    TitleMetadata,
     VideoIdentity,
     read_archive,
 )
@@ -80,7 +83,7 @@ class TestHashResponse:
         response = HashResponse.from_response(ServiceResponse.hash_search('hash_catalogue', archive))
 
         assert response == HashResponse(
-            napisy_id=71928,
+            catalogue_id=71928,
             imdb_id='tt0770828',
             frame_rate=23.976,
             archive=archive,
@@ -91,7 +94,7 @@ class TestHashResponse:
 
         response = HashResponse.from_response(ServiceResponse.hash_search('hash_without_metadata', archive))
 
-        assert response == HashResponse(napisy_id=0, imdb_id=None, frame_rate=None, archive=archive)
+        assert response == HashResponse(catalogue_id=0, imdb_id=None, frame_rate=None, archive=archive)
 
     @pytest.mark.parametrize(
         'name',
@@ -156,13 +159,35 @@ class TestReadArchive:
             read_archive(b'this is not a ZIP archive')
 
 
+class TestTitleMetadata:
+    @pytest.mark.parametrize(
+        ('raw', 'expected'),
+        [
+            pytest.param('Game of Thrones 3x10', ('Game of Thrones', 3, 10, True), id='a series'),
+            pytest.param('The Office: The Accountants 3x00', ('The Office: The Accountants', 3, 0, True), id='ep 0'),
+            pytest.param('Will & Grace  9x01', ('Will & Grace', 9, 1, True), id='two spaces before the suffix'),
+            pytest.param('Breaking Bad 1x01-05', ('Breaking Bad', 1, 1, True), id='a range of episodes'),
+            pytest.param('Man of Steel', ('Man of Steel', None, None, False), id='a movie'),
+            pytest.param('Flicka 2', ('Flicka 2', None, None, False), id='a movie whose title ends in a number'),
+            pytest.param('Blade Runner 2049', ('Blade Runner 2049', None, None, False), id='a movie named by a year'),
+            pytest.param('Fahrenheit 451', ('Fahrenheit 451', None, None, False), id='a movie named by a number'),
+            pytest.param('300', ('300', None, None, False), id='a movie whose whole title is a number'),
+            pytest.param('2x4', ('2x4', None, None, False), id='a movie whose whole title looks like a suffix'),
+        ],
+    )
+    def test_splits_a_catalogue_title(self, raw: str, expected: tuple[str, int | None, int | None, bool]) -> None:
+        parsed = TitleMetadata.from_title(raw)
+
+        assert (parsed.title, parsed.season, parsed.episode, parsed.is_episode) == expected
+
+
 class TestCatalogueResponse:
     def test_reads_a_movie_record(self) -> None:
         records = CatalogueResponse.from_response(ServiceResponse.catalogue_search('catalogue_movie')).records
 
         assert records == (
             CatalogueRecord(
-                napisy_id=71928,
+                catalogue_id=71928,
                 title='Man of Steel',
                 alternative_title='Człowiek ze stali',
                 imdb_id='tt0770828',
@@ -191,7 +216,7 @@ class TestCatalogueResponse:
 
         assert len(records) == 4
         assert records[2] == CatalogueRecord(
-            napisy_id=69321,
+            catalogue_id=69321,
             title='Game of Thrones',  # the ` 3x10` that the catalogue adds is removed
             alternative_title='Gra o tron',
             imdb_id='tt0944947',  # the id of the series, not the id of the episode
@@ -216,13 +241,18 @@ class TestCatalogueResponse:
         assert len(records) == 7
         assert records[0].title == 'Will & Grace'
 
+    def test_reads_the_season_and_episode_from_the_title_when_the_elements_are_absent(self) -> None:
+        records = CatalogueResponse.from_response(ServiceResponse.catalogue_search('catalogue_no_season')).records
+
+        assert [(record.season, record.episode) for record in records] == [(1, 2), (1, 2), (1, 2)]
+
     def test_is_empty_when_the_service_found_nothing(self) -> None:
         assert CatalogueResponse.from_response(b'brak wynikow').records == ()
 
     def test_drops_a_damaged_record_and_keeps_the_others(self) -> None:
         records = CatalogueResponse.from_response(ServiceResponse.catalogue_search('catalogue_damaged')).records
 
-        assert [record.napisy_id for record in records] == [133224]
+        assert [record.catalogue_id for record in records] == [133224]
         assert records[0].frame_rate == 23.976  # the service wrote `23,976`
         assert records[0].season is None
         assert records[0].episode is None
@@ -234,7 +264,7 @@ class TestCatalogueResponse:
 
 #: A catalogue record with every field empty. Fill only the fields a test is about, with ``replace``.
 EMPTY_RECORD = CatalogueRecord(
-    napisy_id=0,
+    catalogue_id=0,
     title=None,
     alternative_title=None,
     imdb_id=None,
@@ -252,7 +282,7 @@ class TestVideoIdentity:
     @staticmethod
     def hash_response(imdb_id: str | None) -> HashResponse:
         """A hash search response that carries nothing but the IMDB id under test."""
-        return HashResponse(napisy_id=0, imdb_id=imdb_id, frame_rate=None, archive=b'')
+        return HashResponse(catalogue_id=0, imdb_id=imdb_id, frame_rate=None, archive=b'')
 
     def test_accepts_a_catalogue_record_that_names_the_series_of_an_episode(
         self,
@@ -295,3 +325,20 @@ class TestCatalogueQuery:
 
     def test_asks_for_an_episode_by_title_and_never_by_imdb_id(self, episodes: dict[str, Episode]) -> None:
         assert CatalogueQuery(episodes['got_s03e10']).parameters == {'title': 'Game of Thrones 3x10'}
+
+
+class TestNapisy24Subtitle:
+    def test_a_catalogue_subtitle_is_identified_by_its_catalogue_id(self) -> None:
+        subtitle = Napisy24Subtitle(Language('pol'), catalogue_id=71928)
+
+        assert subtitle.id == 'catalogue_id:71928'
+
+    def test_a_pool_subtitle_is_identified_by_the_video_hash(self) -> None:
+        subtitle = Napisy24Subtitle(Language('pol'), catalogue_id=0, video_hash='5b8f8f4e41ccb21e')
+
+        assert subtitle.id == 'hash:5b8f8f4e41ccb21e'
+
+    def test_a_catalogue_subtitle_links_to_its_page(self) -> None:
+        subtitle = Napisy24Subtitle(Language('pol'), catalogue_id=71928)
+
+        assert subtitle.page_link == 'https://napisy24.pl/download?napisId=71928'

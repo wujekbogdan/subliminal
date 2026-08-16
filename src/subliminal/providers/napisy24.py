@@ -34,13 +34,14 @@ from typing import TYPE_CHECKING, ClassVar
 from zipfile import BadZipFile, ZipFile
 
 from subliminal.exceptions import AuthenticationError, ProviderError
-from subliminal.subtitle import SUBTITLE_EXTENSIONS
-from subliminal.utils import decorate_imdb_id, sanitize_id
+from subliminal.subtitle import SUBTITLE_EXTENSIONS, Subtitle
+from subliminal.utils import decorate_imdb_id, ensure_list, safely_guessit, sanitize_id
 from subliminal.video import Episode
 
 from . import ParserBeautifulSoup
 
 if TYPE_CHECKING:
+    from babelfish import Language  # type: ignore[import-untyped]
     from bs4 import Tag
 
     from subliminal.video import Video
@@ -109,7 +110,7 @@ class HashResponse:
     UNKNOWN_IMDB_IDS: ClassVar[tuple[str, ...]] = ('', '0')
 
     #: Id of the subtitle in the catalogue, or zero when the subtitle maps to no page on the website
-    napisy_id: int
+    catalogue_id: int
 
     #: IMDB id of the movie, or None when the service does not know it
     imdb_id: str | None
@@ -158,7 +159,7 @@ class HashResponse:
             frame_rate = fields['fps']
 
             return cls(
-                napisy_id=int(fields['napisId']),
+                catalogue_id=int(fields['napisId']),
                 imdb_id=None if imdb_id in cls.UNKNOWN_IMDB_IDS else decorate_imdb_id(imdb_id),
                 frame_rate=float(frame_rate) if frame_rate else None,
                 archive=archive,
@@ -224,6 +225,47 @@ class RecordElement:
 
 
 @dataclass(frozen=True)
+class TitleMetadata:
+    """The metadata that the catalogue packs into one title element.
+
+    The title of an episode contains a season and an episode suffix, e.g.: ``Game of Thrones 3x10``.
+    A movie title carries a name only.
+    """
+
+    #: Matches the suffix that the catalogue appends
+    EPISODE_TOKEN: ClassVar[re.Pattern] = re.compile(r'\s\d{1,2}x\d{1,3}\b')
+
+    #: The title, with the season and the episode removed
+    title: str | None
+
+    #: Season number, or None when the title carries none
+    season: int | None
+
+    #: The episode number, or None when the title carries none
+    episode: int | None
+
+    @property
+    def is_episode(self) -> bool:
+        """Whether the title names an episode of a series."""
+        return self.season is not None
+
+    @classmethod
+    def from_title(cls, title: str | None) -> TitleMetadata:
+        """Split a title into its parts."""
+        # Parse it with guessit only if the title ends with an episode suffix.
+        # Otherwise the title is considered a movie title that does not require any parsing.
+        if title is None or not cls.EPISODE_TOKEN.search(title):
+            return cls(title=title, season=None, episode=None)
+
+        guess = safely_guessit(title, {'type': 'episode'})
+        return cls(
+            title=guess.get('title') or title,
+            season=guess.get('season'),
+            episode=min(ensure_list(guess.get('episode')), default=None),
+        )
+
+
+@dataclass(frozen=True)
 class CatalogueRecord:
     """One subtitle in the catalogue.
 
@@ -232,13 +274,10 @@ class CatalogueRecord:
     The catalogue puts the season and the episode at the end of a title, and both titles are stored without it.
     """
 
-    #: Matches the ``3x10`` that the catalogue puts at the end of a title
-    EPISODE_SUFFIX_PATTERN: ClassVar[re.Pattern] = re.compile(r'\s+\d{1,2}x\d{1,3}\s*$')
-
     #: Separates the release names inside one element
     RELEASE_SEPARATOR: ClassVar[str] = ';'
 
-    napisy_id: int
+    catalogue_id: int
     title: str | None
     alternative_title: str | None
     imdb_id: str | None
@@ -265,7 +304,7 @@ class CatalogueRecord:
         """
         try:
             # int(None) raises a TypeError, so an element with no id lands in the except clause
-            napisy_id = int(element.text('id'))  # type: ignore[arg-type]
+            catalogue_id = int(element.text('id'))  # type: ignore[arg-type]
             year = element.integer('year')
             season = element.integer('season')
             episode = element.integer('episode')
@@ -275,26 +314,23 @@ class CatalogueRecord:
             logger.warning('Skipping a catalogue record that cannot be read')
             return None
 
+        title_metadata = TitleMetadata.from_title(element.text('title'))
+        alt_title_metadata = TitleMetadata.from_title(element.text('alttitle'))
         releases = element.text('release') or ''
 
         return cls(
-            napisy_id=napisy_id,
-            title=cls.strip_episode_suffix(element.text('title')),
-            alternative_title=cls.strip_episode_suffix(element.text('alttitle')),
+            catalogue_id=catalogue_id,
+            title=title_metadata.title,
+            alternative_title=alt_title_metadata.title,
             imdb_id=element.text('imdb'),
             year=year,
             language=element.text('language'),
             releases=tuple(name for release in releases.split(cls.RELEASE_SEPARATOR) if (name := release.strip())),
             frame_rate=frame_rate,
-            season=season,
-            episode=episode,
+            season=season if season is not None else title_metadata.season,
+            episode=episode if episode is not None else title_metadata.episode,
             episode_title=element.text('eptitle'),
         )
-
-    @classmethod
-    def strip_episode_suffix(cls, title: str | None) -> str | None:
-        """Remove the ``3x10`` that the catalogue puts at the end of the title of an episode."""
-        return cls.EPISODE_SUFFIX_PATTERN.sub('', title) if title is not None else None
 
 
 @dataclass(frozen=True)
@@ -440,3 +476,22 @@ class CatalogueQuery:
             return {'imdb': imdb_id}
 
         return {'title': str(self.video.title)}
+
+
+class Napisy24Subtitle(Subtitle):
+    """A subtitle from Napisy24.
+
+    A catalogue subtitle has a catalogue id. A program pool subtitle has none.
+    The id shows which of the two it is: ``catalogue_id:71928`` or ``hash:5b8f8f4e41ccb21e``.
+    A hash identifies the video file and not the subtitle, so it is weak, but a pool subtitle has nothing better.
+    """
+
+    provider_name: ClassVar[str] = 'napisy24'
+
+    #: Page of a catalogue subtitle. The service shows it to a signed-in reader only.
+    PAGE_URL: ClassVar[str] = 'https://napisy24.pl/download?napisId={catalogue_id}'
+
+    def __init__(self, language: Language, *, catalogue_id: int, video_hash: str | None = None) -> None:
+        subtitle_id = f'catalogue_id:{catalogue_id}' if catalogue_id else f'hash:{video_hash}'
+        page_link = self.PAGE_URL.format(catalogue_id=catalogue_id) if catalogue_id else None
+        super().__init__(language, subtitle_id, page_link=page_link)
