@@ -35,12 +35,15 @@ from zipfile import BadZipFile, ZipFile
 
 from subliminal.exceptions import AuthenticationError, ProviderError
 from subliminal.subtitle import SUBTITLE_EXTENSIONS
-from subliminal.utils import decorate_imdb_id
+from subliminal.utils import decorate_imdb_id, sanitize_id
+from subliminal.video import Episode
 
 from . import ParserBeautifulSoup
 
 if TYPE_CHECKING:
     from bs4 import Tag
+
+    from subliminal.video import Video
 
 logger = logging.getLogger(__name__)
 
@@ -343,3 +346,97 @@ class CatalogueResponse:
 
         records = (CatalogueRecord.from_element(RecordElement(tag)) for tag in elements)
         return cls(records=tuple(record for record in records if record is not None))
+
+
+# --------------------------------------------------------------------------------------------------
+# Domain
+#
+# The rules that decide whether a subtitle belongs to a video.
+# This section knows the Video. It knows nothing about HTTP.
+# --------------------------------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class VideoIdentity:
+    """Compares an IMDB id that the service sent with the IMDB id of the video.
+
+    A hash match does not guarantee that the subtitle is for this video.
+    Users have reported the service sending a subtitle for a different title, and only the IMDB id catches it.
+    https://forum.napisy24.pl/viewtopic.php?f=9&t=142
+
+    IMDB gives a separate id to a series and to each of its episodes.
+    Game of Thrones is ``tt0944947``, and its episode S03E10 is ``tt2178796``.
+    Both are stored on an ``Episode``, as ``imdb_id`` and ``series_imdb_id``.
+
+    The hash search returns the id of the episode, and the catalogue search returns the id of the series.
+    We compare against the one that the search returned, or a correct subtitle is refused.
+    """
+
+    video: Video
+
+    def accepts_hash_response(self, response: HashResponse) -> bool:
+        """Whether the response of the hash search is about this video.
+
+        The hash search returns the id of the video itself, so we compare against ``imdb_id``.
+        """
+        return self._agrees(response.imdb_id, self.video.external_ids.get('imdb_id'))
+
+    def accepts_catalogue_record(self, record: CatalogueRecord) -> bool:
+        """Whether the catalogue record is about this video.
+
+        The catalogue returns the id of the series for an episode, so we compare against ``series_imdb_id``.
+        """
+        video_imdb_id = (
+            self.video.external_ids.get('series_imdb_id')
+            if isinstance(self.video, Episode)
+            else self.video.external_ids.get('imdb_id')
+        )
+        return self._agrees(record.imdb_id, video_imdb_id)
+
+    @staticmethod
+    def _agrees(subtitle_imdb_id: str | None, video_imdb_id: str | None) -> bool:
+        """Whether two IMDB ids name the same title.
+
+        An id that one side does not know is not a disagreement, so it passes.
+        A stricter rule would throw away every subtitle for a video that no refiner could identify.
+
+        The hash search sends bare digits, ``770828``, and the catalogue search sends the ``tt`` prefix, ``tt0770828``.
+        Both sides are reduced to their digits before the comparison.
+        """
+        if subtitle_imdb_id is None or video_imdb_id is None:
+            return True
+
+        return sanitize_id(subtitle_imdb_id) == sanitize_id(video_imdb_id)
+
+
+@dataclass(frozen=True)
+class CatalogueQuery:
+    """What to send to the catalogue search to find the subtitles of a video."""
+
+    video: Video
+
+    @property
+    def parameters(self) -> dict[str, str]:
+        """The request parameters of the catalogue search.
+
+        The search takes an IMDB id or a title, and never both.
+
+        - A movie is queried by its IMDB id and falls back to the title when a refiner can't find an id.
+        - An episode is always queried by title, with the season and the episode appended.
+          Example: ``title=Game of Thrones 3x10``
+
+        We can't query an episode by IMDB id.
+        The ``imdb`` parameter only accepts the id of a movie or a series.
+        A query with the id of an episode returns nothing.
+        A query with the id of the series returns multiple episodes instead.
+        The problem is that the catalogue responds with just the 25 oldest records.
+        It's not guaranteed that the episode we're looking for is there.
+        """
+        if isinstance(self.video, Episode):
+            return {'title': f'{self.video.series} {self.video.season}x{self.video.episode}'}
+
+        imdb_id = self.video.external_ids.get('imdb_id')
+        if imdb_id is not None:
+            return {'imdb': imdb_id}
+
+        return {'title': str(self.video.title)}

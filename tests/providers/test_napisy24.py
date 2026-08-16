@@ -1,13 +1,25 @@
 from __future__ import annotations
 
 import io
+from dataclasses import replace
 from pathlib import Path
+from typing import TYPE_CHECKING
 from zipfile import ZipFile
 
 import pytest
 
 from subliminal.exceptions import AuthenticationError, ProviderError
-from subliminal.providers.napisy24 import CatalogueRecord, CatalogueResponse, HashResponse, read_archive
+from subliminal.providers.napisy24 import (
+    CatalogueQuery,
+    CatalogueRecord,
+    CatalogueResponse,
+    HashResponse,
+    VideoIdentity,
+    read_archive,
+)
+
+if TYPE_CHECKING:
+    from subliminal.video import Episode, Movie
 
 
 class ServiceResponse:
@@ -218,3 +230,68 @@ class TestCatalogueResponse:
     def test_refuses_an_unreadable_response(self) -> None:
         with pytest.raises(ProviderError):
             CatalogueResponse.from_response(b'<html><body>Service unavailable</body></html>')
+
+
+#: A catalogue record with every field empty. Fill only the fields a test is about, with ``replace``.
+EMPTY_RECORD = CatalogueRecord(
+    napisy_id=0,
+    title=None,
+    alternative_title=None,
+    imdb_id=None,
+    year=None,
+    language=None,
+    releases=(),
+    frame_rate=None,
+    season=None,
+    episode=None,
+    episode_title=None,
+)
+
+
+class TestVideoIdentity:
+    @staticmethod
+    def hash_response(imdb_id: str | None) -> HashResponse:
+        """A hash search response that carries nothing but the IMDB id under test."""
+        return HashResponse(napisy_id=0, imdb_id=imdb_id, frame_rate=None, archive=b'')
+
+    def test_accepts_a_catalogue_record_that_names_the_series_of_an_episode(
+        self,
+        episodes: dict[str, Episode],
+    ) -> None:
+        episode = episodes['got_s03e10']
+        series_imdb_id = episode.external_ids['series_imdb_id']
+
+        assert VideoIdentity(episode).accepts_catalogue_record(replace(EMPTY_RECORD, imdb_id=series_imdb_id)) is True
+
+    def test_refuses_a_hash_response_that_names_another_title(self, movies: dict[str, Movie]) -> None:
+        identity = VideoIdentity(movies['man_of_steel'])
+
+        assert identity.accepts_hash_response(self.hash_response('tt0944947')) is False
+
+    @pytest.mark.parametrize(
+        ('video_name', 'subtitle_imdb_id'),
+        [
+            pytest.param('man_of_steel', None, id='the service does not know the title'),
+            pytest.param('enders_game', 'tt0770828', id='no refiner gave the video an id'),
+        ],
+    )
+    def test_accepts_an_id_that_one_side_does_not_know(
+        self,
+        movies: dict[str, Movie],
+        video_name: str,
+        subtitle_imdb_id: str | None,
+    ) -> None:
+        identity = VideoIdentity(movies[video_name])
+
+        assert identity.accepts_hash_response(self.hash_response(subtitle_imdb_id)) is True
+
+
+class TestCatalogueQuery:
+    def test_asks_for_a_movie_by_imdb_id(self, movies: dict[str, Movie]) -> None:
+        assert CatalogueQuery(movies['man_of_steel']).parameters == {'imdb': 'tt0770828'}
+
+    def test_asks_for_a_movie_by_title_when_no_refiner_gave_it_an_id(self, movies: dict[str, Movie]) -> None:
+        assert CatalogueQuery(movies['enders_game']).parameters == {'title': "Ender's Game"}
+
+    def test_asks_for_an_episode_by_title_and_never_by_imdb_id(self, episodes: dict[str, Episode]) -> None:
+        assert CatalogueQuery(episodes['got_s03e10']).parameters == {'title': 'Game of Thrones 3x10'}
