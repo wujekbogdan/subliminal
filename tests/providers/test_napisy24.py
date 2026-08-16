@@ -74,6 +74,13 @@ class TestHashResponse:
             archive=archive,
         )
 
+    def test_reads_a_subtitle_that_carries_no_metadata(self) -> None:
+        archive = ServiceResponse.archive(('nativelog.txt', b'not a subtitle at all'))
+
+        response = HashResponse.from_response(ServiceResponse.hash_search('hash_without_metadata', archive))
+
+        assert response == HashResponse(napisy_id=0, imdb_id=None, frame_rate=None, archive=archive)
+
     @pytest.mark.parametrize(
         'name',
         [

@@ -102,6 +102,9 @@ class HashResponse:
     #: Separates the name of a field from its value
     NAME_SEPARATOR: ClassVar[str] = ':'
 
+    #: What the service writes for an IMDB id that it does not know
+    UNKNOWN_IMDB_IDS: ClassVar[tuple[str, ...]] = ('', '0')
+
     #: Id of the subtitle in the catalogue, or zero when the subtitle maps to no page on the website
     napisy_id: int
 
@@ -148,10 +151,13 @@ class HashResponse:
 
         try:
             fields = dict(pair.split(cls.NAME_SEPARATOR, 1) for pair in pairs)  # type: ignore[misc]
+            imdb_id = fields['fimdb']
+            frame_rate = fields['fps']
+
             return cls(
                 napisy_id=int(fields['napisId']),
-                imdb_id=decorate_imdb_id(fields['fimdb']),
-                frame_rate=float(fields['fps']),
+                imdb_id=None if imdb_id in cls.UNKNOWN_IMDB_IDS else decorate_imdb_id(imdb_id),
+                frame_rate=float(frame_rate) if frame_rate else None,
                 archive=archive,
             )
         except (KeyError, ValueError) as error:
