@@ -80,6 +80,17 @@ class HashResponse:
     """The response of the hash search: the metadata and the subtitle itself.
 
     Both arrive together, so the hash search needs no download step.
+
+    Napisy24 uses its own format. Example:
+
+    ``OK-2|res:1280x536|fps:23.976|napisId:71928|tlInfo:||PK<zip bytes>``
+
+    Header fields are pipe-separated.
+    The first field of the header is the status, and every other field is ``name:value``.
+    A value may contain a colon, for example ``ftitle:brak imdb :-(``.
+    Only the first colon separates the name from the value.
+
+    The ``||`` sequence separates the header from the ZIP archive that holds the subtitle.
     """
 
     #: Separates the header from the archive
@@ -87,6 +98,9 @@ class HashResponse:
 
     #: Separates the fields inside the header
     FIELD_SEPARATOR: ClassVar[str] = '|'
+
+    #: Separates the name of a field from its value
+    NAME_SEPARATOR: ClassVar[str] = ':'
 
     #: Id of the subtitle in the catalogue, or zero when the subtitle maps to no page on the website
     napisy_id: int
@@ -133,7 +147,7 @@ class HashResponse:
             raise ProviderError(msg)
 
         try:
-            fields = dict(pair.split(':', 1) for pair in pairs)  # type: ignore[misc]
+            fields = dict(pair.split(cls.NAME_SEPARATOR, 1) for pair in pairs)  # type: ignore[misc]
             return cls(
                 napisy_id=int(fields['napisId']),
                 imdb_id=decorate_imdb_id(fields['fimdb']),

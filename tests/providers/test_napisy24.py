@@ -9,42 +9,63 @@ import pytest
 from subliminal.exceptions import AuthenticationError, ProviderError
 from subliminal.providers.napisy24 import CatalogueRecord, CatalogueResponse, HashResponse, read_archive
 
-DATA_DIR = Path(__file__).parent.parent / 'data' / 'napisy24'
 
+class ServiceResponse:
+    """The bytes that Napisy24 sends, built from the recorded responses in ``tests/data/napisy24``."""
 
-def hash_response(name: str, archive: bytes = b'') -> bytes:
-    """Build the response of the hash search from a data file.
+    DATA_DIR = Path(__file__).parent.parent / 'data' / 'napisy24'
 
-    The data file holds one field on each line. The service sends the same fields on one line, with
-    a ``|`` between them, then ``||``, then the archive. A field value must not hold a new line.
+    #: Separates the header from the archive
+    RESPONSE_SEPARATOR = b'||'
 
-    :param str name: the name of the data file, without the extension.
-    :param bytes archive: the archive that follows the header.
-    :return: the bytes that the service sends.
-    :rtype: bytes
+    #: Separates the fields inside the header
+    FIELD_SEPARATOR = '|'
 
-    """
-    lines = (DATA_DIR / f'{name}.txt').read_text(encoding='utf-8').splitlines()
-    header = '|'.join(line for line in lines if line)
-    return header.encode('utf-8') + b'||' + archive
+    #: The four bytes that every ZIP file starts with, named after PKZIP
+    ZIP_SIGNATURE = b'PK\x03\x04'
 
+    @classmethod
+    def hash_search(cls, name: str, archive: bytes = b'') -> bytes:
+        """Build the response of the hash search from a recorded header.
 
-def zip_archive(*members: tuple[str, bytes]) -> bytes:
-    """Build a ZIP archive that holds the given members."""
-    buffer = io.BytesIO()
-    with ZipFile(buffer, 'w') as archive:
-        for member_name, content in members:
-            archive.writestr(member_name, content)
-    return buffer.getvalue()
+        The recorded file holds one field on each line. The service sends the same fields on one
+        line, with a ``|`` between them, then ``||``, then the archive. A field value never holds
+        a new line, so the two forms carry the same data.
+        """
+        lines = (cls.DATA_DIR / f'{name}.txt').read_text(encoding='utf-8').splitlines()
+        header = cls.FIELD_SEPARATOR.join(line for line in lines if line)
+        return header.encode('utf-8') + cls.RESPONSE_SEPARATOR + archive
+
+    @classmethod
+    def damaged_hash_search(cls, header: str, archive: bytes = ZIP_SIGNATURE) -> bytes:
+        """Build a hash search response whose header is written out in full, and is broken on purpose.
+
+        The service is not known to send any of these. They are the ways our own reader can fail.
+        """
+        return header.encode('utf-8') + cls.RESPONSE_SEPARATOR + archive
+
+    @classmethod
+    def catalogue_search(cls, name: str) -> bytes:
+        """Read the response of the catalogue search, exactly as the service sent it."""
+        return (cls.DATA_DIR / f'{name}.xml').read_bytes()
+
+    @staticmethod
+    def archive(*members: tuple[str, bytes]) -> bytes:
+        """Build a ZIP archive that holds the given members."""
+        buffer = io.BytesIO()
+        with ZipFile(buffer, 'w') as zip_file:
+            for member_name, content in members:
+                zip_file.writestr(member_name, content)
+        return buffer.getvalue()
 
 
 class TestHashResponse:
     def test_reads_a_catalogue_subtitle(self) -> None:
-        archive = zip_archive(
+        archive = ServiceResponse.archive(
             ('Man.Of.Steel.2013.720p.BRRip.x264.AC3-EVO.srt', b'1\n00:00:49,591 --> 00:00:53,011\nx\n')
         )
 
-        response = HashResponse.from_response(hash_response('hash_catalogue', archive))
+        response = HashResponse.from_response(ServiceResponse.hash_search('hash_catalogue', archive))
 
         assert response == HashResponse(
             napisy_id=71928,
@@ -62,7 +83,7 @@ class TestHashResponse:
         ],
     )
     def test_is_none_when_no_subtitle_follows(self, name: str) -> None:
-        assert HashResponse.from_response(hash_response(name)) is None
+        assert HashResponse.from_response(ServiceResponse.hash_search(name)) is None
 
     def test_refuses_a_bad_account(self) -> None:
         with pytest.raises(AuthenticationError):
@@ -73,10 +94,22 @@ class TestHashResponse:
         [
             pytest.param(b'', id='an empty body'),
             pytest.param(b'<html>Service unavailable</html>', id='not the format at all'),
-            pytest.param(b'OK-2|fps:23.976|fimdb:770828|napisId:71928||', id='a subtitle is announced, none follows'),
-            pytest.param(b'OK-2|fps:23.976|broken|napisId:71928||PK\x03\x04', id='a field with no name'),
-            pytest.param(b'OK-2|fps:23.976|fimdb:770828||PK\x03\x04', id='the number of the subtitle is absent'),
-            pytest.param(b'OK-2|fps:no|fimdb:770828|napisId:71928||PK\x03\x04', id='the frame rate is not a number'),
+            pytest.param(
+                ServiceResponse.damaged_hash_search('OK-2|fps:23.976|fimdb:770828|napisId:71928', archive=b''),
+                id='a subtitle is announced, none follows',
+            ),
+            pytest.param(
+                ServiceResponse.damaged_hash_search('OK-2|fps:23.976|broken|napisId:71928'),
+                id='a field with no name',
+            ),
+            pytest.param(
+                ServiceResponse.damaged_hash_search('OK-2|fps:23.976|fimdb:770828'),
+                id='the number of the subtitle is absent',
+            ),
+            pytest.param(
+                ServiceResponse.damaged_hash_search('OK-2|fps:no|fimdb:770828|napisId:71928'),
+                id='the frame rate is not a number',
+            ),
         ],
     )
     def test_refuses_an_unreadable_response(self, content: bytes) -> None:
@@ -87,7 +120,7 @@ class TestHashResponse:
 class TestReadArchive:
     def test_picks_the_subtitle_and_not_the_shortcut(self) -> None:
         subtitle = b'1\n00:00:49,591 --> 00:00:53,011\nx\n'
-        archive = zip_archive(
+        archive = ServiceResponse.archive(
             ('Napisy24.pl.url', b'[InternetShortcut]\nURL=http://napisy24.pl/\n'),
             ('Dexter.S08E07.Dress.Code.720p.BluRay.DD5.1.x264-NTb.srt', subtitle),
         )
@@ -95,7 +128,7 @@ class TestReadArchive:
         assert read_archive(archive) == subtitle
 
     def test_is_none_when_no_member_is_a_subtitle(self) -> None:
-        archive = zip_archive(('Napisy24.pl.url', b'[InternetShortcut]\nURL=http://napisy24.pl/\n'))
+        archive = ServiceResponse.archive(('Napisy24.pl.url', b'[InternetShortcut]\nURL=http://napisy24.pl/\n'))
 
         assert read_archive(archive) is None
 
@@ -106,7 +139,7 @@ class TestReadArchive:
 
 class TestCatalogueResponse:
     def test_reads_a_movie_record(self) -> None:
-        records = CatalogueResponse.from_response((DATA_DIR / 'catalogue_movie.xml').read_bytes()).records
+        records = CatalogueResponse.from_response(ServiceResponse.catalogue_search('catalogue_movie')).records
 
         assert records == (
             CatalogueRecord(
@@ -135,7 +168,7 @@ class TestCatalogueResponse:
         )
 
     def test_reads_an_episode_record(self) -> None:
-        records = CatalogueResponse.from_response((DATA_DIR / 'catalogue_episode.xml').read_bytes()).records
+        records = CatalogueResponse.from_response(ServiceResponse.catalogue_search('catalogue_episode')).records
 
         assert len(records) == 4
         assert records[2] == CatalogueRecord(
@@ -159,7 +192,7 @@ class TestCatalogueResponse:
         assert records[3].episode_title is None  # the element is present but empty
 
     def test_reads_a_response_with_a_bare_ampersand(self) -> None:
-        records = CatalogueResponse.from_response((DATA_DIR / 'catalogue_ampersand.xml').read_bytes()).records
+        records = CatalogueResponse.from_response(ServiceResponse.catalogue_search('catalogue_ampersand')).records
 
         assert len(records) == 7
         assert records[0].title == 'Will & Grace'
@@ -168,7 +201,7 @@ class TestCatalogueResponse:
         assert CatalogueResponse.from_response(b'brak wynikow').records == ()
 
     def test_drops_a_damaged_record_and_keeps_the_others(self) -> None:
-        records = CatalogueResponse.from_response((DATA_DIR / 'catalogue_damaged.xml').read_bytes()).records
+        records = CatalogueResponse.from_response(ServiceResponse.catalogue_search('catalogue_damaged')).records
 
         assert [record.napisy_id for record in records] == [133224]
         assert records[0].frame_rate == 23.976  # the service wrote `23,976`
