@@ -1,0 +1,19 @@
+OK-2
+res:1280x536
+time:02:23:02
+fps:23.976
+imdb:770828
+ilea:14
+ftitle:brak imdb :-(
+fyear:2007
+fgenres:Drama
+fwstawil:2666
+ftlumacz:sinu6
+fkorekta:sinu6
+fcover:
+fimdb:770828
+napisId:71928
+lp:204689
+tlId:
+tlPrc:
+tlInfo:

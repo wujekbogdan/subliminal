@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<subtitle>
+		<title>This record has no identifier</title>
+		<imdb>tt0000001</imdb>
+		<fps>23.976</fps>
+</subtitle>
+
+<subtitle>
+		<id>2</id>
+		<title>The frame rate of this record is not a number</title>
+		<fps>brak</fps>
+</subtitle>
+
+<subtitle>
+		<id>133224</id>
+		<title>Ivalo</title>
+		<altTitle></altTitle>
+		<imdb>tt13444840</imdb>
+		<year>2023</year>
+		<release>1080p.WEB.H264-CBFM</release>
+		<language>pl</language>
+		<cd>1</cd>
+		<time>00:44:12|||</time>
+		<size>1234567|||</size>
+		<fps>23,976</fps>
+		<resolution>1920x1080</resolution>
+		<author></author>
+		<rating>0.0000</rating>
+</subtitle>
