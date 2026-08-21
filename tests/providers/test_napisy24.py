@@ -20,9 +20,10 @@ from subliminal.providers.napisy24 import (
     VideoIdentity,
     read_archive,
 )
+from subliminal.video import Movie
 
 if TYPE_CHECKING:
-    from subliminal.video import Episode, Movie
+    from subliminal.video import Episode
 
 
 class ServiceResponse:
@@ -43,9 +44,9 @@ class ServiceResponse:
     def hash_search(cls, name: str, archive: bytes = b'') -> bytes:
         """Build the response of the hash search from a recorded header.
 
-        The recorded file holds one field on each line. The service sends the same fields on one
-        line, with a ``|`` between them, then ``||``, then the archive. A field value never holds
-        a new line, so the two forms carry the same data.
+        The recorded file holds one field on each line.
+        The service sends the same fields on one line, with a ``|`` between them, then ``||``, then the archive.
+        A field value never holds a new line, so the two forms carry the same data.
         """
         lines = (cls.DATA_DIR / f'{name}.txt').read_text(encoding='utf-8').splitlines()
         header = cls.FIELD_SEPARATOR.join(line for line in lines if line)
@@ -163,22 +164,22 @@ class TestTitleMetadata:
     @pytest.mark.parametrize(
         ('raw', 'expected'),
         [
-            pytest.param('Game of Thrones 3x10', ('Game of Thrones', 3, 10, True), id='a series'),
-            pytest.param('The Office: The Accountants 3x00', ('The Office: The Accountants', 3, 0, True), id='ep 0'),
-            pytest.param('Will & Grace  9x01', ('Will & Grace', 9, 1, True), id='two spaces before the suffix'),
-            pytest.param('Breaking Bad 1x01-05', ('Breaking Bad', 1, 1, True), id='a range of episodes'),
-            pytest.param('Man of Steel', ('Man of Steel', None, None, False), id='a movie'),
-            pytest.param('Flicka 2', ('Flicka 2', None, None, False), id='a movie whose title ends in a number'),
-            pytest.param('Blade Runner 2049', ('Blade Runner 2049', None, None, False), id='a movie named by a year'),
-            pytest.param('Fahrenheit 451', ('Fahrenheit 451', None, None, False), id='a movie named by a number'),
-            pytest.param('300', ('300', None, None, False), id='a movie whose whole title is a number'),
-            pytest.param('2x4', ('2x4', None, None, False), id='a movie whose whole title looks like a suffix'),
+            pytest.param('Game of Thrones 3x10', ('Game of Thrones', 3, 10), id='a series'),
+            pytest.param('The Office: The Accountants 3x00', ('The Office: The Accountants', 3, 0), id='ep 0'),
+            pytest.param('Will & Grace  9x01', ('Will & Grace', 9, 1), id='two spaces before the suffix'),
+            pytest.param('Breaking Bad 1x01-05', ('Breaking Bad', 1, 1), id='a range of episodes'),
+            pytest.param('Man of Steel', ('Man of Steel', None, None), id='a movie'),
+            pytest.param('Flicka 2', ('Flicka 2', None, None), id='a movie whose title ends in a number'),
+            pytest.param('Blade Runner 2049', ('Blade Runner 2049', None, None), id='a movie named by a year'),
+            pytest.param('Fahrenheit 451', ('Fahrenheit 451', None, None), id='a movie named by a number'),
+            pytest.param('300', ('300', None, None), id='a movie whose whole title is a number'),
+            pytest.param('2x4', ('2x4', None, None), id='a movie whose whole title looks like a suffix'),
         ],
     )
-    def test_splits_a_catalogue_title(self, raw: str, expected: tuple[str, int | None, int | None, bool]) -> None:
+    def test_splits_a_catalogue_title(self, raw: str, expected: tuple[str, int | None, int | None]) -> None:
         parsed = TitleMetadata.from_title(raw)
 
-        assert (parsed.title, parsed.season, parsed.episode, parsed.is_episode) == expected
+        assert (parsed.title, parsed.season, parsed.episode) == expected
 
 
 class TestCatalogueResponse:
@@ -262,7 +263,7 @@ class TestCatalogueResponse:
             CatalogueResponse.from_response(b'<html><body>Service unavailable</body></html>')
 
 
-#: A catalogue record with every field empty. Fill only the fields a test is about, with ``replace``.
+#: A catalogue record with every field empty. A test fills what it needs with ``replace``.
 EMPTY_RECORD = CatalogueRecord(
     catalogue_id=0,
     title=None,
@@ -281,7 +282,7 @@ EMPTY_RECORD = CatalogueRecord(
 class TestVideoIdentity:
     @staticmethod
     def hash_response(imdb_id: str | None) -> HashResponse:
-        """A hash search response that carries nothing but the IMDB id under test."""
+        """A hash search response. Every field but the IMDB id is empty."""
         return HashResponse(catalogue_id=0, imdb_id=imdb_id, frame_rate=None, archive=b'')
 
     def test_accepts_a_catalogue_record_that_names_the_series_of_an_episode(
@@ -327,18 +328,80 @@ class TestCatalogueQuery:
         assert CatalogueQuery(episodes['got_s03e10']).parameters == {'title': 'Game of Thrones 3x10'}
 
 
-class TestNapisy24Subtitle:
-    def test_a_catalogue_subtitle_is_identified_by_its_catalogue_id(self) -> None:
-        subtitle = Napisy24Subtitle(Language('pol'), catalogue_id=71928)
+class TestNapisy24SubtitleFromHashSearch:
+    @staticmethod
+    def subtitle(video_hash: str, *, catalogue_id: int = 0, frame_rate: float | None = None) -> Napisy24Subtitle:
+        """A subtitle from the hash search. A field that a test does not pass stays empty."""
+        response = HashResponse(catalogue_id=catalogue_id, imdb_id=None, frame_rate=frame_rate, archive=b'')
+        return Napisy24Subtitle.from_hash_response(Language('pol'), response, video_hash=video_hash)
+
+    def test_matches_a_video_that_carries_the_same_hash(self, movies: dict[str, Movie]) -> None:
+        movie = movies['man_of_steel']
+        movie.hashes['napisy24'] = movie.hashes['opensubtitles']
+
+        assert self.subtitle(movie.hashes['napisy24']).get_matches(movie) == {'hash'}
+
+    def test_matches_nothing_when_the_video_carries_another_hash(self, movies: dict[str, Movie]) -> None:
+        movie = movies['man_of_steel']
+        movie.hashes['napisy24'] = movie.hashes['opensubtitles']
+
+        assert self.subtitle('aaf50071a286b8aa').get_matches(movie) == set()
+
+    def test_a_catalogue_subtitle_is_identified_by_its_catalogue_id_and_maps_to_a_page(self) -> None:
+        subtitle = self.subtitle('5b8f8f4e41ccb21e', catalogue_id=71928)
 
         assert subtitle.id == 'catalogue_id:71928'
+        assert subtitle.page_link == 'https://napisy24.pl/download?napisId=71928'
 
-    def test_a_pool_subtitle_is_identified_by_the_video_hash(self) -> None:
-        subtitle = Napisy24Subtitle(Language('pol'), catalogue_id=0, video_hash='5b8f8f4e41ccb21e')
+    def test_a_pool_subtitle_is_identified_by_the_video_hash_and_maps_to_no_page(self) -> None:
+        subtitle = self.subtitle('5b8f8f4e41ccb21e')
 
         assert subtitle.id == 'hash:5b8f8f4e41ccb21e'
+        assert subtitle.page_link is None
 
-    def test_a_catalogue_subtitle_links_to_its_page(self) -> None:
-        subtitle = Napisy24Subtitle(Language('pol'), catalogue_id=71928)
+    def test_carries_the_frame_rate_of_the_header(self) -> None:
+        assert self.subtitle('5b8f8f4e41ccb21e', frame_rate=23.976).fps == 23.976
 
-        assert subtitle.page_link == 'https://napisy24.pl/download?napisId=71928'
+
+class TestNapisy24SubtitleFromCatalogueSearch:
+    @staticmethod
+    def subtitle(**fields: object) -> Napisy24Subtitle:
+        """A subtitle from the catalogue search. A field that a test does not pass stays empty."""
+        return Napisy24Subtitle.from_catalogue_record(Language('pol'), replace(EMPTY_RECORD, **fields))
+
+    def test_matches_an_episode_by_its_metadata_and_its_release_name(self, episodes: dict[str, Episode]) -> None:
+        subtitle = self.subtitle(
+            title='Game of Thrones',
+            year=2011,
+            season=3,
+            episode=10,
+            episode_title='Mhysa',
+            releases=('720p.WEB-DL.DD5.1.H.264-NTb',),
+        )
+
+        assert subtitle.get_matches(episodes['got_s03e10']) == {
+            'series',
+            'season',
+            'episode',
+            'title',
+            'country',
+            'year',
+            'release_group',
+            'source',
+            'resolution',
+            'video_codec',
+            'audio_codec',
+        }
+
+    def test_matches_a_movie_by_its_polish_title(self) -> None:
+        video = Movie('Czlowiek.ze.stali.2013.mkv', 'Człowiek ze stali', year=2013)
+        subtitle = self.subtitle(title='Man of Steel', alternative_title='Człowiek ze stali', year=2013)
+
+        assert subtitle.get_matches(video) == {'title', 'year', 'country'}
+
+    def test_matches_the_frame_rate_of_the_record_and_carries_it(self) -> None:
+        video = Movie('Man.of.Steel.2013.mkv', 'Man of Steel', year=2013, frame_rate=23.976)
+        subtitle = self.subtitle(title='Man of Steel', year=2013, frame_rate=23.976)
+
+        assert subtitle.get_matches(video) == {'title', 'year', 'country', 'fps'}
+        assert subtitle.fps == 23.976

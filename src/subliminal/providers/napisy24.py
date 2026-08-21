@@ -34,6 +34,7 @@ from typing import TYPE_CHECKING, ClassVar
 from zipfile import BadZipFile, ZipFile
 
 from subliminal.exceptions import AuthenticationError, ProviderError
+from subliminal.matches import guess_matches
 from subliminal.subtitle import SUBTITLE_EXTENSIONS, Subtitle
 from subliminal.utils import decorate_imdb_id, ensure_list, safely_guessit, sanitize_id
 from subliminal.video import Episode
@@ -41,12 +42,28 @@ from subliminal.video import Episode
 from . import ParserBeautifulSoup
 
 if TYPE_CHECKING:
+    from typing import Protocol
+
     from babelfish import Language  # type: ignore[import-untyped]
     from bs4 import Tag
 
     from subliminal.video import Video
 
+    class SubtitleMatcher(Protocol):
+        """Matches the data of a subtitle against the data of a video.
+
+        A match names one thing the two agree on, and subliminal scores it.
+        """
+
+        def get_matches(self, video: Video) -> set[str]:
+            """Get the matches against the `video`."""
+            ...
+
+
 logger = logging.getLogger(__name__)
+
+#: Name of the provider, and the key of its hash in ``video.hashes``
+PROVIDER_NAME = 'napisy24'
 
 
 # --------------------------------------------------------------------------------------------------
@@ -71,7 +88,7 @@ class HashStatus(str, Enum):
     FOUND = 'OK-2'
 
     #: A subtitle exists, but the ``tb`` parameter stopped the service from sending it.
-    #: This provider never sends ``tb``, so the service never sends this status back.
+    #: This provider never sends ``tb``, so the service never returns this status.
     NOT_SENT = 'OK-3'
 
     #: The account name or the password is wrong.
@@ -109,7 +126,7 @@ class HashResponse:
     #: What the service writes for an IMDB id that it does not know
     UNKNOWN_IMDB_IDS: ClassVar[tuple[str, ...]] = ('', '0')
 
-    #: Id of the subtitle in the catalogue, or zero when the subtitle maps to no page on the website
+    #: Id of the subtitle in the catalogue, or zero for a pool subtitle
     catalogue_id: int
 
     #: IMDB id of the movie, or None when the service does not know it
@@ -172,8 +189,8 @@ class HashResponse:
 def read_archive(archive: bytes) -> bytes | None:
     """Extract the subtitle from a ZIP archive that the service sent.
 
-    The archive can hold a ``Napisy24.pl.url`` shortcut next to the subtitle, so the member is chosen by extension.
-    The first member of the archive is not always the subtitle.
+    The archive can hold a ``Napisy24.pl.url`` shortcut next to the subtitle.
+    The first member is then not the subtitle, so the member is chosen by extension.
 
     :param bytes archive: the ZIP archive.
     :return: the content of the subtitle, or None when no member is a subtitle.
@@ -199,7 +216,7 @@ def read_archive(archive: bytes) -> bytes | None:
 class RecordElement:
     """One ``<subtitle>`` element of a catalogue response.
 
-    A method gives None when the child element is absent, and also when the child element holds no text.
+    A method returns None when the child element is absent, and also when the child element holds no text.
     """
 
     tag: Tag
@@ -228,7 +245,7 @@ class RecordElement:
 class TitleMetadata:
     """The metadata that the catalogue packs into one title element.
 
-    The title of an episode contains a season and an episode suffix, e.g.: ``Game of Thrones 3x10``.
+    The title of an episode contains a season and an episode suffix, for example ``Game of Thrones 3x10``.
     A movie title carries a name only.
     """
 
@@ -241,19 +258,14 @@ class TitleMetadata:
     #: Season number, or None when the title carries none
     season: int | None
 
-    #: The episode number, or None when the title carries none
+    #: Episode number, or None when the title carries none
     episode: int | None
-
-    @property
-    def is_episode(self) -> bool:
-        """Whether the title names an episode of a series."""
-        return self.season is not None
 
     @classmethod
     def from_title(cls, title: str | None) -> TitleMetadata:
         """Split a title into its parts."""
-        # Parse it with guessit only if the title ends with an episode suffix.
-        # Otherwise the title is considered a movie title that does not require any parsing.
+        # guessit forced to ``episode`` reads any trailing number as a season and an episode.
+        # It runs only when the suffix is there, so a movie title is left alone.
         if title is None or not cls.EPISODE_TOKEN.search(title):
             return cls(title=title, season=None, episode=None)
 
@@ -270,7 +282,6 @@ class CatalogueRecord:
     """One subtitle in the catalogue.
 
     An episode record names its series, not its episode.
-    :attr:`title` holds the name of the series, and :attr:`imdb_id` holds the id of the series.
     The catalogue puts the season and the episode at the end of a title, and both titles are stored without it.
     """
 
@@ -278,9 +289,16 @@ class CatalogueRecord:
     RELEASE_SEPARATOR: ClassVar[str] = ';'
 
     catalogue_id: int
+
+    #: Name of the series for an episode
     title: str | None
+
+    #: The Polish title
     alternative_title: str | None
+
+    #: Id of the series for an episode
     imdb_id: str | None
+
     year: int | None
     language: str | None
 
@@ -357,10 +375,10 @@ class CatalogueResponse:
 
         Parse the valid ``<subtitle>`` elements out of the XML-like response, and filter out the invalid ones.
 
-        Napisy24 API does not respond with a valid XML.
+        Napisy24 API does not respond with valid XML.
         It does not escape ``&`` characters, so a strict parser would stop at a title like ``Will & Grace``.
-        We use a forgiving parser instead - ``html.parser``.
-        ``html.parser`` warns about the XML header, so we strip the header out.
+        We use a forgiving parser instead - ``lxml``, or ``html.parser`` when lxml is absent.
+        ``html.parser`` warns about the XML declaration, so we strip the declaration out.
 
         It is a bit hacky, but that's the best we can do to parse a response that does not comply with the XML standard.
 
@@ -478,20 +496,121 @@ class CatalogueQuery:
         return {'title': str(self.video.title)}
 
 
+@dataclass(frozen=True)
+class HashMatcher:
+    """Matches a subtitle against a video by the hash of the video file.
+
+    The hash search returns no title and no release name, so the hash is the only match.
+    """
+
+    video_hash: str
+
+    def get_matches(self, video: Video) -> set[str]:
+        """Get the matches against the `video`."""
+        return {'hash'} if video.hashes.get(PROVIDER_NAME) == self.video_hash else set()
+
+
+@dataclass(frozen=True)
+class CatalogueMatcher:
+    """Matches a subtitle against a video by the data of its catalogue record.
+
+    The catalogue search never reads the video file, so the hash is never a match.
+
+    The catalogue keeps the original title and the Polish title, and subliminal takes one title at a time.
+    Each title goes into its own guess, so a video named in Polish matches a record whose title is in English.
+    """
+
+    record: CatalogueRecord
+
+    def get_matches(self, video: Video) -> set[str]:
+        """Get the matches against the `video`."""
+        metadata = {
+            'year': self.record.year,
+            'season': self.record.season,
+            'episode': self.record.episode,
+            'episode_title': self.record.episode_title,
+            'fps': self.record.frame_rate,
+        }
+        titles = (self.record.title, self.record.alternative_title)
+        video_type = 'episode' if isinstance(video, Episode) else 'movie'
+
+        guesses = (
+            *({**metadata, 'title': title} for title in titles if title is not None),
+            *(safely_guessit(release, {'type': video_type}) for release in self.record.releases),
+        )
+        return {match for guess in guesses for match in guess_matches(video, guess)}
+
+
 class Napisy24Subtitle(Subtitle):
     """A subtitle from Napisy24.
 
-    A catalogue subtitle has a catalogue id. A program pool subtitle has none.
-    The id shows which of the two it is: ``catalogue_id:71928`` or ``hash:5b8f8f4e41ccb21e``.
-    A hash identifies the video file and not the subtitle, so it is weak, but a pool subtitle has nothing better.
+    A catalogue subtitle has an id, and the id maps to a page on the website.
+    A pool subtitle has neither, so the hash of the video file identifies it instead.
+    The id shows which of the two it is: ``catalogue_id:{catalogue_id}`` or ``hash:{video_hash}``.
+    A hash belongs to the video file and not to the subtitle.
+    That is weak, but a pool subtitle has nothing better.
     """
 
-    provider_name: ClassVar[str] = 'napisy24'
+    provider_name: ClassVar[str] = PROVIDER_NAME
 
-    #: Page of a catalogue subtitle. The service shows it to a signed-in reader only.
-    PAGE_URL: ClassVar[str] = 'https://napisy24.pl/download?napisId={catalogue_id}'
+    #: Id of the subtitle in the catalogue, or zero for a pool subtitle
+    catalogue_id: int
 
-    def __init__(self, language: Language, *, catalogue_id: int, video_hash: str | None = None) -> None:
+    def __init__(
+        self,
+        language: Language,
+        matcher: SubtitleMatcher,
+        *,
+        catalogue_id: int,
+        video_hash: str | None = None,
+        fps: float | None = None,
+    ) -> None:
         subtitle_id = f'catalogue_id:{catalogue_id}' if catalogue_id else f'hash:{video_hash}'
-        page_link = self.PAGE_URL.format(catalogue_id=catalogue_id) if catalogue_id else None
-        super().__init__(language, subtitle_id, page_link=page_link)
+        page_link = f'https://napisy24.pl/download?napisId={catalogue_id}' if catalogue_id else None
+        super().__init__(language, subtitle_id, page_link=page_link, fps=fps)
+        self.catalogue_id = catalogue_id
+        self.matcher = matcher
+
+    @classmethod
+    def from_hash_response(cls, language: Language, response: HashResponse, *, video_hash: str) -> Napisy24Subtitle:
+        """Build the subtitle that the hash search returned.
+
+        :param language: language of the subtitle.
+        :type language: :class:`~babelfish.language.Language`
+        :param response: the response of the hash search.
+        :type response: HashResponse
+        :param str video_hash: hash of the video file that the search used.
+        :return: the subtitle.
+        :rtype: Napisy24Subtitle
+
+        """
+        return cls(
+            language,
+            HashMatcher(video_hash),
+            catalogue_id=response.catalogue_id,
+            video_hash=video_hash,
+            fps=response.frame_rate,
+        )
+
+    @classmethod
+    def from_catalogue_record(cls, language: Language, record: CatalogueRecord) -> Napisy24Subtitle:
+        """Build the subtitle from one record of the catalogue search.
+
+        :param language: language of the subtitle.
+        :type language: :class:`~babelfish.language.Language`
+        :param record: the record to read.
+        :type record: CatalogueRecord
+        :return: the subtitle.
+        :rtype: Napisy24Subtitle
+
+        """
+        return cls(
+            language,
+            CatalogueMatcher(record),
+            catalogue_id=record.catalogue_id,
+            fps=record.frame_rate,
+        )
+
+    def get_matches(self, video: Video) -> set[str]:
+        """Get the matches against the `video`."""
+        return self.matcher.get_matches(video)
