@@ -162,6 +162,9 @@ class ServiceResponse:
     #: The four bytes that every ZIP file starts with, named after PKZIP
     ZIP_SIGNATURE = b'PK\x03\x04'
 
+    #: One SubRip cue, in place of a whole subtitle file
+    SUBTITLE = b'1\n00:00:49,591 --> 00:00:53,011\nx\n'
+
     @classmethod
     def hash_search(cls, name: str, archive: bytes = b'') -> bytes:
         """Build the response of the hash search from a recorded header.
@@ -211,9 +214,7 @@ class ServiceResponse:
 
 class TestHashResponse:
     def test_reads_a_catalogue_subtitle(self) -> None:
-        archive = ServiceResponse.archive(
-            ('Man.Of.Steel.2013.720p.BRRip.x264.AC3-EVO.srt', b'1\n00:00:49,591 --> 00:00:53,011\nx\n')
-        )
+        archive = ServiceResponse.archive(('Man.Of.Steel.2013.720p.BRRip.x264.AC3-EVO.srt', ServiceResponse.SUBTITLE))
 
         response = HashResponse.from_response(ServiceResponse.hash_search('hash_catalogue', archive))
 
@@ -276,7 +277,7 @@ class TestHashResponse:
 
 class TestReadArchive:
     def test_picks_the_subtitle_and_not_the_shortcut(self) -> None:
-        subtitle = b'1\n00:00:49,591 --> 00:00:53,011\nx\n'
+        subtitle = ServiceResponse.SUBTITLE
         archive = ServiceResponse.archive(
             ('Napisy24.pl.url', b'[InternetShortcut]\nURL=http://napisy24.pl/\n'),
             ('Dexter.S08E07.Dress.Code.720p.BluRay.DD5.1.x264-NTb.srt', subtitle),
@@ -569,20 +570,19 @@ class TestNapisy24Provider:
     def test_finds_a_subtitle_by_the_hash_of_the_video(self, movies: dict[str, Movie]) -> None:
         movie = movies['man_of_steel']
         movie.hashes['napisy24'] = movie.hashes['opensubtitles']
-        content = b'1\n00:00:49,591 --> 00:00:53,011\nx\n'
-        archive = ServiceResponse.archive(('Man.Of.Steel.2013.720p.BRRip.x264.AC3-EVO.srt', content))
+        archive = ServiceResponse.archive(('Man.Of.Steel.2013.720p.BRRip.x264.AC3-EVO.srt', ServiceResponse.SUBTITLE))
         provider = self.provider(StubResponse(content=ServiceResponse.hash_search('hash_catalogue', archive)))
 
         subtitles = provider.list_subtitles(movie, {Language('pol')})
 
         assert [subtitle.id for subtitle in subtitles] == ['catalogue_id:71928']
-        assert subtitles[0].content == content
+        assert subtitles[0].content == ServiceResponse.SUBTITLE
 
     def test_refuses_a_subtitle_that_names_another_title(self, episodes: dict[str, Episode]) -> None:
         # The recorded header names Man of Steel, and the video is an episode of Game of Thrones
         episode = episodes['got_s03e10']
         episode.hashes['napisy24'] = episode.hashes['opensubtitles']
-        archive = ServiceResponse.archive(('Mhysa.srt', b'1\n00:00:01,000 --> 00:00:02,000\nx\n'))
+        archive = ServiceResponse.archive(('Mhysa.srt', ServiceResponse.SUBTITLE))
         provider = self.provider(
             StubResponse(content=ServiceResponse.hash_search('hash_catalogue', archive)),
             StubResponse(content=b'brak wynikow'),
@@ -593,6 +593,12 @@ class TestNapisy24Provider:
     def test_refuses_to_search_before_it_holds_a_session(self, movies: dict[str, Movie]) -> None:
         with pytest.raises(NotInitializedProviderError):
             Napisy24Provider().list_subtitles(movies['man_of_steel'], {Language('pol')})
+
+    def test_refuses_to_download_before_it_holds_a_session(self) -> None:
+        subtitle = Napisy24Subtitle.from_catalogue_record(Language('pol'), EMPTY_RECORD)
+
+        with pytest.raises(NotInitializedProviderError):
+            Napisy24Provider().download_subtitle(subtitle)
 
     def test_searches_only_the_catalogue_for_a_video_that_carries_no_hash(self, movies: dict[str, Movie]) -> None:
         provider = self.provider(StubResponse(content=b'brak wynikow'))
@@ -625,6 +631,31 @@ class TestNapisy24Provider:
 
         assert [subtitle.id for subtitle in subtitles] == ['catalogue_id:71928']
         assert subtitles[0].content is None
+
+    def test_downloads_the_archive_of_a_catalogue_subtitle(self, movies: dict[str, Movie]) -> None:
+        provider = self.provider(
+            StubResponse(content=ServiceResponse.catalogue_search('catalogue_movie')),
+            StubResponse(content=ServiceResponse.archive(('Man.Of.Steel.srt', ServiceResponse.SUBTITLE))),
+        )
+        subtitle = provider.list_subtitles(movies['man_of_steel'], {Language('pol')})[0]
+
+        provider.download_subtitle(subtitle)
+
+        assert subtitle.content == ServiceResponse.SUBTITLE
+
+    def test_asks_for_no_archive_when_the_hash_search_already_sent_one(self, movies: dict[str, Movie]) -> None:
+        movie = movies['man_of_steel']
+        movie.hashes['napisy24'] = movie.hashes['opensubtitles']
+        archive = ServiceResponse.archive(('Man.Of.Steel.srt', ServiceResponse.SUBTITLE))
+        provider = self.provider(StubResponse(content=ServiceResponse.hash_search('hash_catalogue', archive)))
+        subtitle = provider.list_subtitles(movie, {Language('pol')})[0]
+
+        provider.download_subtitle(subtitle)
+
+        assert subtitle.content == ServiceResponse.SUBTITLE
+        assert [request['url'] for request in provider.session.requests] == [  # type: ignore[union-attr]
+            'http://napisy24.pl/run/CheckSubAgent.php'
+        ]
 
     def test_drops_a_catalogue_record_in_another_language(self, movies: dict[str, Movie]) -> None:
         response = StubResponse(content=ServiceResponse.catalogue_record(language='en', imdb_id='tt0770828'))

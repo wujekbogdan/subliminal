@@ -816,6 +816,21 @@ class Napisy24Provider(Provider[Napisy24Subtitle]):
         """List all the subtitles for the video."""
         return [subtitle for language in languages for subtitle in self.query(video, language)]
 
+    def download_subtitle(self, subtitle: Napisy24Subtitle) -> None:
+        """Download the content of the subtitle.
+
+        The hash search sends the metadata and the archive in one response.
+        A subtitle it found already holds its content, so only a catalogue subtitle needs a request.
+        """
+        if self.session is None:
+            raise NotInitializedProviderError
+
+        if subtitle.content is not None:
+            return
+
+        archive = download_archive(self.session, catalogue_id=subtitle.catalogue_id, timeout=self.timeout)
+        subtitle.set_content(read_archive(archive))
+
     def _search_by_hash(self, session: Session, video: Video, language: Language) -> Napisy24Subtitle | None:
         """Search both collections by the hash of the video file, and read the subtitle it returns."""
         video_hash = video.hashes.get(PROVIDER_NAME)
