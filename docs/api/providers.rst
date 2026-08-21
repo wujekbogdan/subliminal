@@ -23,6 +23,11 @@ NapiProjekt
 .. automodule:: subliminal.providers.napiprojekt
    :members:
 
+Napisy24
+--------
+.. automodule:: subliminal.providers.napisy24
+   :members:
+
 OpenSubtitles
 -------------
 .. automodule:: subliminal.providers.opensubtitles

@@ -39,6 +39,7 @@ def test_refine(mkv: dict[str, str]) -> None:
         'opensubtitlescom': '40b44a7096b71ec3',
         # 'bsplayer': '40b44a7096b71ec3',
         'napiprojekt': '9884a2b66dcb2965d0f45ce84e37b60c',
+        'napisy24': '40b44a7096b71ec3',
         'opensubtitles': '40b44a7096b71ec3',
         'subtis': '40b44a7096b71ec3',
     }

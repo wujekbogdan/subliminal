@@ -1,0 +1,97 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - Subliminal/2.7
+    method: GET
+    uri: http://napisy24.pl/libs/webapi.php?title=Game+of+Thrones+3x10
+  response:
+    body:
+      string: "\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\n<subtitle>\n\t\t<id>69305</id>\n\t\t<title>Game
+        of Thrones 3x10</title>\n\t\t<altTitle>Gra o tron 3x10</altTitle>\n\t\t\t<season>3</season>\n\t\t\t<episode>10</episode>\n\t\t\t<epTitle>Mhysa</epTitle>\n\t\t<imdb>tt0944947</imdb>\n\t\t<year>2011</year>\n\t\t<release>HDTV.x264-EVOLVE;
+        1080i.HDTV.MPEG2.DD5.1-CtrlHD</release>\n\t\t<language>pl</language>\n\t\t<cd>1</cd>\n\t\t<time>01:04:27|||</time>\n\t\t<size>420462492|||</size>\n\t\t<fps>23.976</fps>\n\t\t<resolution>720x404</resolution>\n\t\t<author>kat
+        &amp; Igloo666</author>\n\t\t<rating>0.0000</rating>\n</subtitle>\n\n<subtitle>\n\t\t<id>69306</id>\n\t\t<title>Game
+        of Thrones 3x10</title>\n\t\t<altTitle>Gra o tron 3x10</altTitle>\n\t\t\t<season>3</season>\n\t\t\t<episode>10</episode>\n\t\t\t<epTitle>Mhysa</epTitle>\n\t\t<imdb>tt0944947</imdb>\n\t\t<year>2011</year>\n\t\t<release>720p.HDTV.x264-EVOLVE;
+        720p.HDTV.x264-CPG; 480p.HDTV.x264-ChameE; 480p.HDTV.x264-mSD; HDTV.XviD-Chivvez;
+        HDTV.XviD-3LT0N; HDTV.XviD-Snake; HDTV.XviD-JKS; HDTV.XviD-AFG</release>\n\t\t<language>pl</language>\n\t\t<cd>1</cd>\n\t\t<time>01:04:26|||</time>\n\t\t<size>1495492709|||</size>\n\t\t<fps>23.976</fps>\n\t\t<resolution>1280x720</resolution>\n\t\t<author>kat
+        &amp; Igloo666</author>\n\t\t<rating>0.0000</rating>\n</subtitle>\n\n<subtitle>\n\t\t<id>69321</id>\n\t\t<title>Game
+        of Thrones 3x10</title>\n\t\t<altTitle>Gra o tron 3x10</altTitle>\n\t\t\t<season>3</season>\n\t\t\t<episode>10</episode>\n\t\t\t<epTitle>Mhysa</epTitle>\n\t\t<imdb>tt0944947</imdb>\n\t\t<year>2011</year>\n\t\t<release>720p.WEB-DL.DD5.1.AAC2.0.H.264-YFN;
+        1080p.WEB-DL.DD5.1.AAC2.0.H.264-YFN; 720p.WEB-DL.DD5.1.H.264-NTb; 1080p.WEB-DL.DD5.1.H.264-NTb</release>\n\t\t<language>pl</language>\n\t\t<cd>1</cd>\n\t\t<time>01:02:44|||</time>\n\t\t<size>2216657483|||</size>\n\t\t<fps>23.976</fps>\n\t\t<resolution>1280x720</resolution>\n\t\t<author>kat
+        &amp; Igloo666</author>\n\t\t<rating>0.0000</rating>\n</subtitle>\n\n<subtitle>\n\t\t<id>81459</id>\n\t\t<title>Game
+        of Thrones 3x10</title>\n\t\t<altTitle>Gra o tron 3x10</altTitle>\n\t\t\t<season>3</season>\n\t\t\t<episode>10</episode>\n\t\t\t<epTitle></epTitle>\n\t\t<imdb>tt0944947</imdb>\n\t\t<year>2011</year>\n\t\t<release>BDRip.x264-DEMAND;
+        720p.BluRay.x264-DEMAND; 1080p.BluRay.x264-ROVERS.</release>\n\t\t<language>pl</language>\n\t\t<cd>1</cd>\n\t\t<time>01:02:43|||</time>\n\t\t<size>398479048|||</size>\n\t\t<fps>23.976</fps>\n\t\t<resolution>720x404</resolution>\n\t\t<author>kat
+        &amp; Igloo666</author>\n\t\t<rating>0.0000</rating>\n</subtitle>\n\n"
+    headers:
+      Cache-Control:
+      - no-cache, must-revalidate
+      Connection:
+      - keep-alive
+      Content-Type:
+      - text/html; charset=UTF-8
+      Date:
+      - Fri, 21 Aug 2026 15:48:02 GMT
+      Server:
+      - nginx
+      Transfer-Encoding:
+      - chunked
+      X-Powered-By:
+      - PHP/7.4.33
+      - PleskLin
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - Subliminal/2.7
+    method: GET
+    uri: http://napisy24.pl/libs/webapi.php?title=Will+%26+Grace
+  response:
+    body:
+      string: "\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\n<subtitle>\n\t\t<id>104787</id>\n\t\t<title>Will
+        & Grace  9x01</title>\n\t\t<altTitle></altTitle>\n\t\t\t<season>9</season>\n\t\t\t<episode>1</episode>\n\t\t\t<epTitle>11
+        Years Later</epTitle>\n\t\t<imdb>tt0157246</imdb>\n\t\t<year>2017</year>\n\t\t<release>HDTV.x264-SVA</release>\n\t\t<language>pl</language>\n\t\t<cd>1</cd>\n\t\t<time>00:21:30|||</time>\n\t\t<size>
+        127550063|||</size>\n\t\t<fps>23.976</fps>\n\t\t<resolution></resolution>\n\t\t<author>Lestat007</author>\n\t\t<rating>6.0000</rating>\n</subtitle>\n\n<subtitle>\n\t\t<id>104902</id>\n\t\t<title>Will
+        & Grace  9x02</title>\n\t\t<altTitle></altTitle>\n\t\t\t<season>9</season>\n\t\t\t<episode>2</episode>\n\t\t\t<epTitle>The
+        Game/Teyana Taylor</epTitle>\n\t\t<imdb>tt0157246</imdb>\n\t\t<year>2017</year>\n\t\t<release>.HDTV.x264-FLEET;720p.HDTV.x264-FLEET</release>\n\t\t<language>pl</language>\n\t\t<cd>1</cd>\n\t\t<time>00:21:02|||</time>\n\t\t<size>123962703|||</size>\n\t\t<fps>23.976</fps>\n\t\t<resolution></resolution>\n\t\t<author>Lestat007</author>\n\t\t<rating>0.0000</rating>\n</subtitle>\n\n<subtitle>\n\t\t<id>18873</id>\n\t\t<title>Will
+        & Grace 2x01</title>\n\t\t<altTitle>Will and Grace 2x01</altTitle>\n\t\t\t<season>2</season>\n\t\t\t<episode>1</episode>\n\t\t\t<epTitle>Zgadnij,
+        kto nie przyjdzie na kolacj\u0119?</epTitle>\n\t\t<imdb>tt0157246</imdb>\n\t\t<year>1998</year>\n\t\t<release>DVDRip.XviD-FoV</release>\n\t\t<language>pl</language>\n\t\t<cd>1</cd>\n\t\t<time>00:21:04|||</time>\n\t\t<size>183156736|||</size>\n\t\t<fps>25.000</fps>\n\t\t<resolution>576x432</resolution>\n\t\t<author>ralph23</author>\n\t\t<rating>0.0000</rating>\n</subtitle>\n\n<subtitle>\n\t\t<id>19077</id>\n\t\t<title>Will
+        & Grace 2x02</title>\n\t\t<altTitle>Will and Grace 2x02</altTitle>\n\t\t\t<season>2</season>\n\t\t\t<episode>2</episode>\n\t\t\t<epTitle></epTitle>\n\t\t<imdb>tt0157246</imdb>\n\t\t<year>1998</year>\n\t\t<release>DVDRip.XviD-FoV</release>\n\t\t<language>pl</language>\n\t\t<cd>1</cd>\n\t\t<time>00:21:02|||</time>\n\t\t<size>183445504|||</size>\n\t\t<fps>25.000</fps>\n\t\t<resolution>576x432</resolution>\n\t\t<author>ralph23</author>\n\t\t<rating>0.0000</rating>\n</subtitle>\n\n<subtitle>\n\t\t<id>19128</id>\n\t\t<title>Will
+        & Grace 2x03</title>\n\t\t<altTitle>Will and Grace 2x03</altTitle>\n\t\t\t<season>2</season>\n\t\t\t<episode>3</episode>\n\t\t\t<epTitle></epTitle>\n\t\t<imdb>tt0157246</imdb>\n\t\t<year>1998</year>\n\t\t<release>DVDRip.XviD-FoV</release>\n\t\t<language>pl</language>\n\t\t<cd>1</cd>\n\t\t<time>00:21:03|||</time>\n\t\t<size>183205888|||</size>\n\t\t<fps>25.000</fps>\n\t\t<resolution>576x432</resolution>\n\t\t<author>ralph23</author>\n\t\t<rating>0.0000</rating>\n</subtitle>\n\n<subtitle>\n\t\t<id>19132</id>\n\t\t<title>Will
+        & Grace 2x04</title>\n\t\t<altTitle>Will and Grace 2x04</altTitle>\n\t\t\t<season>2</season>\n\t\t\t<episode>4</episode>\n\t\t\t<epTitle></epTitle>\n\t\t<imdb>tt0157246</imdb>\n\t\t<year>1998</year>\n\t\t<release>DVDRip.XviD-FoV</release>\n\t\t<language>pl</language>\n\t\t<cd>1</cd>\n\t\t<time>00:21:04|||</time>\n\t\t<size>183552000|||</size>\n\t\t<fps>25.000</fps>\n\t\t<resolution>576x432</resolution>\n\t\t<author>ralph23</author>\n\t\t<rating>0.0000</rating>\n</subtitle>\n\n<subtitle>\n\t\t<id>104920</id>\n\t\t<title>Will
+        & Grace 9x01</title>\n\t\t<altTitle>Will & Grace</altTitle>\n\t\t\t<season>9</season>\n\t\t\t<episode>1</episode>\n\t\t\t<epTitle>11
+        Years Later</epTitle>\n\t\t<imdb>tt6439576</imdb>\n\t\t<year>2017</year>\n\t\t<release>HDTV.x264-SVA</release>\n\t\t<language>pl</language>\n\t\t<cd>1</cd>\n\t\t<time>00:21:30|||</time>\n\t\t<size>127550063|||</size>\n\t\t<fps>23.976</fps>\n\t\t<resolution>720x404</resolution>\n\t\t<author>Lestat007</author>\n\t\t<rating>0.0000</rating>\n</subtitle>\n\n"
+    headers:
+      Cache-Control:
+      - no-cache, must-revalidate
+      Connection:
+      - keep-alive
+      Content-Type:
+      - text/html; charset=UTF-8
+      Date:
+      - Fri, 21 Aug 2026 15:48:02 GMT
+      Server:
+      - nginx
+      Transfer-Encoding:
+      - chunked
+      X-Powered-By:
+      - PHP/7.4.33
+      - PleskLin
+    status:
+      code: 200
+      message: OK
+version: 1

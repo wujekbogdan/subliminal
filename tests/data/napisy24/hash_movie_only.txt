@@ -1,0 +1,16 @@
+OK-1
+res:1280x720
+time:00:19:17
+fps:23.976
+imdb:3229392
+ilea:0
+ftitle:"The Big Bang Theory" The Workplace Proximity
+fyear:2013
+fgenres:Comedy
+fcover:http://ia.media-imdb.com/images/M/MV5BMjI1Mzc4MDUwNl5BMl5BanBnXkFtZTgwMDAzOTIxMjE@._V1._SY200.jpg
+fimdb:3229392
+ftlumacz:
+tlId:
+tlPrc:
+tlInfo:
+lp:11776653

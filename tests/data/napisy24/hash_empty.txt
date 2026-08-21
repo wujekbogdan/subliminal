@@ -1,0 +1,16 @@
+OK-0
+res:
+time:
+fps:
+imdb:0
+ilea:0
+ftitle:
+fyear:
+fgenres:
+fcover:
+fimdb:0
+ftlumacz:
+tlId:
+tlPrc:
+tlInfo:
+lp:504751810

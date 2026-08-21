@@ -1,0 +1,297 @@
+interactions:
+- request:
+    body: postAction=CheckSub&ua=subliminal&ap=lanimilbus&fh=7f614d32e583bc02&fs=3758880200&fn=Vengeance.2022.1080p.WEBRip.x264.mkv&n24pref=1
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '131'
+      Content-Type:
+      - application/x-www-form-urlencoded
+      User-Agent:
+      - Subliminal/2.7
+    method: POST
+    uri: http://napisy24.pl/run/CheckSubAgent.php
+  response:
+    body:
+      string: OK-0||
+    headers:
+      Cache-Control:
+      - no-cache, must-revalidate
+      Connection:
+      - keep-alive
+      Content-Type:
+      - text/html; charset=UTF-8
+      Date:
+      - Fri, 21 Aug 2026 15:49:05 GMT
+      Expires:
+      - Thu, 19 Nov 1981 08:52:00 GMT
+      Pragma:
+      - no-cache
+      Server:
+      - nginx
+      Set-Cookie:
+      - PHPSESSID=keqtrdbh39071i06f1m39vum05; expires=Thu, 27-Aug-2026 17:49:05 GMT;
+        Max-Age=525600; path=/
+      Transfer-Encoding:
+      - chunked
+      X-Powered-By:
+      - PHP/7.4.33
+      - PleskLin
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Cookie:
+      - PHPSESSID=keqtrdbh39071i06f1m39vum05
+      User-Agent:
+      - Subliminal/2.7
+    method: GET
+    uri: http://napisy24.pl/libs/webapi.php?title=Vengeance
+  response:
+    body:
+      string: "\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\n<subtitle>\n\t\t<id>46628</id>\n\t\t<title>Arthur
+        et la vengeance de Maltazard</title>\n\t\t<altTitle>Arthur 2, Arthur And The
+        Revenge Of Maltazard</altTitle>\n\t\t<imdb>tt0940657</imdb>\n\t\t<year>2009</year>\n\t\t<release>DVDRip.XviD-Jaybob</release>\n\t\t<language>pl</language>\n\t\t<cd>1</cd>\n\t\t<time>1:33|||</time>\n\t\t<size>787075072|||</size>\n\t\t<fps>23.976</fps>\n\t\t<resolution>624x352</resolution>\n\t\t<author>belaa</author>\n\t\t<rating>0.0000</rating>\n</subtitle>\n\n<subtitle>\n\t\t<id>68664</id>\n\t\t<title>Arthur
+        et la vengeance de Maltazard</title>\n\t\t<altTitle>Arthur 2</altTitle>\n\t\t<imdb>tt0940657</imdb>\n\t\t<year>2009</year>\n\t\t<release>720p.BRRip.x264.AC3-jbr.k</release>\n\t\t<language>pl</language>\n\t\t<cd>1</cd>\n\t\t<time>01:33:44|||</time>\n\t\t<size>|||</size>\n\t\t<fps>23.976</fps>\n\t\t<resolution></resolution>\n\t\t<author>Debney</author>\n\t\t<rating>0.0000</rating>\n</subtitle>\n\n<subtitle>\n\t\t<id>24542</id>\n\t\t<title>Blood
+        Loss</title>\n\t\t<altTitle>Day of Vengeance</altTitle>\n\t\t<imdb></imdb>\n\t\t<year>2008</year>\n\t\t<release>DVDRip.XviD-AsiSter</release>\n\t\t<language>pl</language>\n\t\t<cd>1</cd>\n\t\t<time>01:38:09|||</time>\n\t\t<size>726919168|||</size>\n\t\t<fps>23.976</fps>\n\t\t<resolution>640x352</resolution>\n\t\t<author>Bi$hop</author>\n\t\t<rating>0.0000</rating>\n</subtitle>\n\n<subtitle>\n\t\t<id>86977</id>\n\t\t<title>Bound
+        to Vengeance</title>\n\t\t<altTitle>Reversal</altTitle>\n\t\t<imdb>tt1230213</imdb>\n\t\t<year>2015</year>\n\t\t<release>HDRip.XViD-ETRG;
+        WEB-DL.XviD.MP3-RARBG; WEB-DL.XviD.AC3-RARBG; WEB-DL.x264-RARBG; 720p.WEB-DL.XviD.AC3-RARBG;
+        720p.WEB-DL.DD5.1.H264-RARBG; 720p.WEB-DL.x264 ETRG</release>\n\t\t<language>pl</language>\n\t\t<cd>1</cd>\n\t\t<time>01:19:34|||</time>\n\t\t<size>2635011777|||</size>\n\t\t<fps>23.976</fps>\n\t\t<resolution>1280x532</resolution>\n\t\t<author>SztywnyPatyk
+        & #12jojko</author>\n\t\t<rating>0.0000</rating>\n</subtitle>\n\n<subtitle>\n\t\t<id>89879</id>\n\t\t<title>Bound
+        to Vengeance</title>\n\t\t<altTitle>Reversal</altTitle>\n\t\t<imdb>tt1230213</imdb>\n\t\t<year>2015</year>\n\t\t<release>BRRip.XviD.MP3-RARBG;
+        BRRip.XviD.AC3-RARBG; BDRip.x264-ENSOR; 720p.BluRay.x264-VeDeTT; 1080p.BluRay.x264-VeDeTT</release>\n\t\t<language>pl</language>\n\t\t<cd>1</cd>\n\t\t<time>01:19:32|||</time>\n\t\t<size>397221526|||</size>\n\t\t<fps>23.976</fps>\n\t\t<resolution>720x300</resolution>\n\t\t<author>SztywnyPatyk
+        & #12jojko</author>\n\t\t<rating>0.0000</rating>\n</subtitle>\n\n<subtitle>\n\t\t<id>105303</id>\n\t\t<title>Bunnyman
+        Vengeance</title>\n\t\t<altTitle></altTitle>\n\t\t<imdb>tt3629032</imdb>\n\t\t<year>2017</year>\n\t\t<release>HDRip.XviD.AC3-EVO</release>\n\t\t<language>pl</language>\n\t\t<cd>1</cd>\n\t\t<time>01:31:11|||</time>\n\t\t<size>1377423060|||</size>\n\t\t<fps>23.976</fps>\n\t\t<resolution>720x304</resolution>\n\t\t<author>NocnyTygrys</author>\n\t\t<rating>0.0000</rating>\n</subtitle>\n\n<subtitle>\n\t\t<id>73941</id>\n\t\t<title>Carrie</title>\n\t\t<altTitle>Carrie,
+        la vengeance</altTitle>\n\t\t<imdb></imdb>\n\t\t<year>2013</year>\n\t\t<release>DVDRip.x264-SPARKS;
+        DVDRip.XviD-FiRE</release>\n\t\t<language>pl</language>\n\t\t<cd>1</cd>\n\t\t<time>01:39:41|||</time>\n\t\t<size>706114022|||</size>\n\t\t<fps>23.976</fps>\n\t\t<resolution>718x308</resolution>\n\t\t<author>jacob93</author>\n\t\t<rating>6.0000</rating>\n</subtitle>\n\n<subtitle>\n\t\t<id>73942</id>\n\t\t<title>Carrie</title>\n\t\t<altTitle>Carrie,
+        la vengeance</altTitle>\n\t\t<imdb></imdb>\n\t\t<year>2013</year>\n\t\t<release>720p.BluRay.x264-SPARKS;
+        1080p.BluRay.x264-SPARKS</release>\n\t\t<language>pl</language>\n\t\t<cd>1</cd>\n\t\t<time>01:40:56|||</time>\n\t\t<size>4689624356|||</size>\n\t\t<fps>23.976</fps>\n\t\t<resolution>1280x544</resolution>\n\t\t<author>jacob93</author>\n\t\t<rating>6.0000</rating>\n</subtitle>\n\n<subtitle>\n\t\t<id>2523</id>\n\t\t<title>Die
+        Hard: With a Vengeance</title>\n\t\t<altTitle>Szklana Pu\u0142apka 3</altTitle>\n\t\t<imdb>tt0112864</imdb>\n\t\t<year>1995</year>\n\t\t<release>INTERNAL.DVDRIP.XVID-UbM</release>\n\t\t<language>pl</language>\n\t\t<cd>2</cd>\n\t\t<time>01:01:15|01:01:38||</time>\n\t\t<size>733407232|734541824||</size>\n\t\t<fps>25.000</fps>\n\t\t<resolution>640x304</resolution>\n\t\t<author></author>\n\t\t<rating>0.0000</rating>\n</subtitle>\n\n<subtitle>\n\t\t<id>3131</id>\n\t\t<title>Die
+        Hard: With a Vengeance</title>\n\t\t<altTitle>Szklana Pu\u0142apka 3</altTitle>\n\t\t<imdb>tt0112864</imdb>\n\t\t<year>1995</year>\n\t\t<release>INTERNAL.DVDRip.XviD-NEPTUNE</release>\n\t\t<language>pl</language>\n\t\t<cd>2</cd>\n\t\t<time>01:00:31|01:01:58||</time>\n\t\t<size>733806592|733751296||</size>\n\t\t<fps>25.000</fps>\n\t\t<resolution>608x256</resolution>\n\t\t<author></author>\n\t\t<rating>3.0000</rating>\n</subtitle>\n\n<subtitle>\n\t\t<id>7655</id>\n\t\t<title>Die
+        Hard: With a Vengeance</title>\n\t\t<altTitle>Szklana Pu\u0142apka 3</altTitle>\n\t\t<imdb>tt0112864</imdb>\n\t\t<year>1995</year>\n\t\t<release>DVDRip.By.Drux</release>\n\t\t<language>pl</language>\n\t\t<cd>1</cd>\n\t\t<time>02:02:54|||</time>\n\t\t<size>1565517824|||</size>\n\t\t<fps>25.000</fps>\n\t\t<resolution>720x304</resolution>\n\t\t<author></author>\n\t\t<rating>0.0000</rating>\n</subtitle>\n\n<subtitle>\n\t\t<id>8115</id>\n\t\t<title>Die
+        Hard: With a Vengeance</title>\n\t\t<altTitle>Szklana Pu\u0142apka 3</altTitle>\n\t\t<imdb>tt0112864</imdb>\n\t\t<year>1995</year>\n\t\t<release>INTERNAL.DVDRip.XviD-NEPTUNE</release>\n\t\t<language>en</language>\n\t\t<cd>2</cd>\n\t\t<time>01:00:31|01:01:58||</time>\n\t\t<size>733806592|733751296||</size>\n\t\t<fps>25.000</fps>\n\t\t<resolution>608x256</resolution>\n\t\t<author></author>\n\t\t<rating>0.0000</rating>\n</subtitle>\n\n<subtitle>\n\t\t<id>8304</id>\n\t\t<title>Die
+        Hard: With a Vengeance</title>\n\t\t<altTitle>Szklana Pu\u0142apka 3</altTitle>\n\t\t<imdb>tt0112864</imdb>\n\t\t<year>1995</year>\n\t\t<release>720p.x264</release>\n\t\t<language>pl</language>\n\t\t<cd>1</cd>\n\t\t<time>02:01:46|||</time>\n\t\t<size>|||</size>\n\t\t<fps>23.976</fps>\n\t\t<resolution>1280x544</resolution>\n\t\t<author></author>\n\t\t<rating>0.0000</rating>\n</subtitle>\n\n<subtitle>\n\t\t<id>8529</id>\n\t\t<title>Die
+        Hard: With a Vengeance</title>\n\t\t<altTitle>Szklana Pu\u0142apka 3</altTitle>\n\t\t<imdb>tt0112864</imdb>\n\t\t<year>1995</year>\n\t\t<release>720p.BluRay.x264-SNPNT</release>\n\t\t<language>pl</language>\n\t\t<cd>1</cd>\n\t\t<time>02:08:32|||</time>\n\t\t<size>4696295240|||</size>\n\t\t<fps>23.976</fps>\n\t\t<resolution>1280x544</resolution>\n\t\t<author></author>\n\t\t<rating>0.0000</rating>\n</subtitle>\n\n<subtitle>\n\t\t<id>38957</id>\n\t\t<title>Die
+        Hard: With a Vengeance</title>\n\t\t<altTitle>Szklana Pu\u0142apka 3</altTitle>\n\t\t<imdb>tt0112864</imdb>\n\t\t<year>1995</year>\n\t\t<release>720p.BluRay.DTS.x264-ESiR;
+        BRRip.Ac3-5.1-CaLvIn</release>\n\t\t<language>pl</language>\n\t\t<cd>1</cd>\n\t\t<time>02:08:31|||</time>\n\t\t<size>8509127422|||</size>\n\t\t<fps>23.976</fps>\n\t\t<resolution>1280x544</resolution>\n\t\t<author></author>\n\t\t<rating>6.0000</rating>\n</subtitle>\n\n<subtitle>\n\t\t<id>37142</id>\n\t\t<title>Furry
+        Vengeance</title>\n\t\t<altTitle></altTitle>\n\t\t<imdb>tt0492389</imdb>\n\t\t<year>2010</year>\n\t\t<release>DVD.Rip-Felony</release>\n\t\t<language>en</language>\n\t\t<cd>1</cd>\n\t\t<time>|||</time>\n\t\t<size>|||</size>\n\t\t<fps>23.976</fps>\n\t\t<resolution></resolution>\n\t\t<author></author>\n\t\t<rating>0.0000</rating>\n</subtitle>\n\n<subtitle>\n\t\t<id>56792</id>\n\t\t<title>Ghost
+        Rider: Spirit of Vengeance</title>\n\t\t<altTitle>Ghost Rider 2</altTitle>\n\t\t<imdb>tt1071875</imdb>\n\t\t<year>2011</year>\n\t\t<release>HDRip.CROPPED.XviD-FTW;
+        HDRIP.XVID.AC3-PRESTiGE; HDRip.KORSUB.READINFO.XVID-AbSurdiTy; KORSUB.HDRip.H264.AAC-KTH;
+        HDRip.Cropped.XviD.Feel-Free; HDRIP.XVID-WBZ; 720p.HDTV.x264-VoXHD</release>\n\t\t<language>pl</language>\n\t\t<cd>1</cd>\n\t\t<time>01:35:32|||</time>\n\t\t<size>775136677|||</size>\n\t\t<fps>24.000</fps>\n\t\t<resolution>720x240</resolution>\n\t\t<author>Caffrey</author>\n\t\t<rating>6.0000</rating>\n</subtitle>\n\n<subtitle>\n\t\t<id>56796</id>\n\t\t<title>Ghost
+        Rider: Spirit of Vengeance</title>\n\t\t<altTitle>Ghost Rider 2</altTitle>\n\t\t<imdb>tt1071875</imdb>\n\t\t<year>2011</year>\n\t\t<release>HDRiP.PART.CROP.XviD-INSPiRAL;
+        HDRip.XviD-HOPE</release>\n\t\t<language>pl</language>\n\t\t<cd>1</cd>\n\t\t<time>01:35:27|||</time>\n\t\t<size>1464613044|||</size>\n\t\t<fps>24.000</fps>\n\t\t<resolution>720x272</resolution>\n\t\t<author>Caffrey</author>\n\t\t<rating>0.0000</rating>\n</subtitle>\n\n<subtitle>\n\t\t<id>58944</id>\n\t\t<title>Ghost
+        Rider: Spirit of Vengeance</title>\n\t\t<altTitle>Ghost Rider 2</altTitle>\n\t\t<imdb>tt1071875</imdb>\n\t\t<year>2011</year>\n\t\t<release>BDRip.XviD-SPARKS;
+        720p.BluRay.x264-SPARKS; 3D.Half-SBS.1080p.BluRay.x264-HD; BDRip.XVID.AC3.HQ.Hive-CM8;
+        DVDRip.XviD.AC3-PTpOWeR; BRRip.XViD.AC3-ADTRG; BRRip XviD-LTRG; BRRiP.XViD-SAM;
+        BRRip.XviD.AC3-BTRG; BRRip.XviD-THS; BRRIP.XVID.AC3-MAJESTIC</release>\n\t\t<language>pl</language>\n\t\t<cd>1</cd>\n\t\t<time>01:35:31|||</time>\n\t\t<size>734183424|||</size>\n\t\t<fps>23.976</fps>\n\t\t<resolution>608x256</resolution>\n\t\t<author>Caffrey</author>\n\t\t<rating>6.0000</rating>\n</subtitle>\n\n<subtitle>\n\t\t<id>2547</id>\n\t\t<title>Highlander:
+        The Search for Vengeance</title>\n\t\t<altTitle>Highlander: The Search for
+        Vengeance</altTitle>\n\t\t<imdb>tt0465657</imdb>\n\t\t<year>2007</year>\n\t\t<release>STV.DVDRip.XviD-DOMiNO</release>\n\t\t<language>pl</language>\n\t\t<cd>1</cd>\n\t\t<time>01:25:39|||</time>\n\t\t<size>731705344|||</size>\n\t\t<fps>23.976</fps>\n\t\t<resolution>560x304</resolution>\n\t\t<author>Highlander</author>\n\t\t<rating>6.0000</rating>\n</subtitle>\n\n<subtitle>\n\t\t<id>17994</id>\n\t\t<title>Highlander:
+        The Search for Vengeance</title>\n\t\t<altTitle>Highlander: The Search for
+        Vengeance</altTitle>\n\t\t<imdb>tt0465657</imdb>\n\t\t<year>2007</year>\n\t\t<release>STV.Directors.Cut.Edition.DVDRip.XviD-CoWRY</release>\n\t\t<language>pl</language>\n\t\t<cd>1</cd>\n\t\t<time>01:36:48|||</time>\n\t\t<size>732110848|||</size>\n\t\t<fps>23.976</fps>\n\t\t<resolution>592x320</resolution>\n\t\t<author>Highlander</author>\n\t\t<rating>6.0000</rating>\n</subtitle>\n\n<subtitle>\n\t\t<id>132453</id>\n\t\t<title>Ice
+        Road: Vengeance</title>\n\t\t<altTitle></altTitle>\n\t\t<imdb>tt27621210</imdb>\n\t\t<year>2025</year>\n\t\t<release>720p.BluRay.x264-PiGNUS;1080p.BluRay.x264-PiGNUS;1080p.BluRay.x264-OFT;BluRay.1080p.DDP5.1.x264-hallowed;1080p.BluRay.DDP.5.1.10bit.H.265-iVy;720p.BluRay.x264.AAC-YTS.MX;1080p.BluRay.x264.AAC5.1-YTS.MX;BDRip.x264-PiGNUS</release>\n\t\t<language>pl</language>\n\t\t<cd>1</cd>\n\t\t<time>01:52:55|||</time>\n\t\t<size>13335821556|||</size>\n\t\t<fps>23.976</fps>\n\t\t<resolution>1920x1036</resolution>\n\t\t<author>Konrad
+        Szabowicz</author>\n\t\t<rating>0.0000</rating>\n</subtitle>\n\n<subtitle>\n\t\t<id>35525</id>\n\t\t<title>La
+        rebelion de las muertas</title>\n\t\t<altTitle>Vengeance of the Zombies -
+        International</altTitle>\n\t\t<imdb></imdb>\n\t\t<year>1973</year>\n\t\t<release>DVDRip-ByCoxtra</release>\n\t\t<language>pl</language>\n\t\t<cd>1</cd>\n\t\t<time>01:28:44|||</time>\n\t\t<size>|||</size>\n\t\t<fps>23.976</fps>\n\t\t<resolution>576x432</resolution>\n\t\t<author>Rado</author>\n\t\t<rating>6.0000</rating>\n</subtitle>\n\n<subtitle>\n\t\t<id>104200</id>\n\t\t<title>Pirates
+        of the Caribbean: Dead Men Tell No Tales</title>\n\t\t<altTitle>Pirates des
+        Cara\xEFbes - La vengeance de Salazar</altTitle>\n\t\t<imdb>tt1790809</imdb>\n\t\t<year>2017</year>\n\t\t<release>WEB-DL.x264-FGT;WEB-DL.XviD.MP3-FGT;WEB-DL.XviD.AC3-FGT;720p.WEB-DL.XviD.AC3-FGT;1080p.WEB-DL.DD5.1.H264-FGT;HDRip.XviD.AC3-EVO</release>\n\t\t<language>pl</language>\n\t\t<cd>1</cd>\n\t\t<time>2:09:06|||</time>\n\t\t<size>1920638046|||</size>\n\t\t<fps>23.976</fps>\n\t\t<resolution>720x304</resolution>\n\t\t<author>Dakota</author>\n\t\t<rating>6.0000</rating>\n</subtitle>\n\n<subtitle>\n\t\t<id>104209</id>\n\t\t<title>Pirates
+        of the Caribbean: Dead Men Tell No Tales</title>\n\t\t<altTitle>Pirates des
+        Cara\xEFbes - La vengeance de Salazar</altTitle>\n\t\t<imdb>tt1790809</imdb>\n\t\t<year>2017</year>\n\t\t<release>BDRip.X264-AMIABLE,
+        720p.BluRay.X264-AMIABLE</release>\n\t\t<language>pl</language>\n\t\t<cd>1</cd>\n\t\t<time>02:09:07|||</time>\n\t\t<size>1379191066|||</size>\n\t\t<fps>23.976</fps>\n\t\t<resolution>720x300</resolution>\n\t\t<author>Dakota</author>\n\t\t<rating>0.0000</rating>\n</subtitle>\n\n"
+    headers:
+      Cache-Control:
+      - no-cache, must-revalidate
+      Connection:
+      - keep-alive
+      Content-Type:
+      - text/html; charset=UTF-8
+      Date:
+      - Fri, 21 Aug 2026 15:49:05 GMT
+      Server:
+      - nginx
+      Transfer-Encoding:
+      - chunked
+      X-Powered-By:
+      - PHP/7.4.33
+      - PleskLin
+    status:
+      code: 200
+      message: OK
+- request:
+    body: postAction=CheckSub&ua=subliminal&ap=lanimilbus&fh=6878b3ef7c1bd19e&fs=501910737&fn=The.Big.Bang.Theory.S07E05.720p.HDTV.X264-DIMENSION.mkv&n24pref=1
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '149'
+      Content-Type:
+      - application/x-www-form-urlencoded
+      Cookie:
+      - PHPSESSID=keqtrdbh39071i06f1m39vum05
+      User-Agent:
+      - Subliminal/2.7
+    method: POST
+    uri: http://napisy24.pl/run/CheckSubAgent.php
+  response:
+    body:
+      string: OK-1|res:1280x720|time:00:19:17|fps:23.976|imdb:3229392|ilea:0|ftitle:"The
+        Big Bang Theory" The Workplace Proximity|fyear:2013|fgenres:Comedy|fcover:http://ia.media-imdb.com/images/M/MV5BMjI1Mzc4MDUwNl5BMl5BanBnXkFtZTgwMDAzOTIxMjE@._V1._SY200.jpg|fimdb:3229392|ftlumacz:|tlId:|tlPrc:|tlInfo:|lp:11776653||
+    headers:
+      Cache-Control:
+      - no-cache, must-revalidate
+      Connection:
+      - keep-alive
+      Content-Type:
+      - text/html; charset=UTF-8
+      Date:
+      - Fri, 21 Aug 2026 15:49:05 GMT
+      Expires:
+      - Thu, 19 Nov 1981 08:52:00 GMT
+      Pragma:
+      - no-cache
+      Server:
+      - nginx
+      Transfer-Encoding:
+      - chunked
+      X-Powered-By:
+      - PHP/7.4.33
+      - PleskLin
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Cookie:
+      - PHPSESSID=keqtrdbh39071i06f1m39vum05
+      User-Agent:
+      - Subliminal/2.7
+    method: GET
+    uri: http://napisy24.pl/libs/webapi.php?title=The+Big+Bang+Theory+7x5
+  response:
+    body:
+      string: brak wynikow
+    headers:
+      Cache-Control:
+      - no-cache, must-revalidate
+      Connection:
+      - keep-alive
+      Content-Type:
+      - text/html; charset=UTF-8
+      Date:
+      - Fri, 21 Aug 2026 15:49:06 GMT
+      Server:
+      - nginx
+      Transfer-Encoding:
+      - chunked
+      X-Powered-By:
+      - PHP/7.4.33
+      - PleskLin
+    status:
+      code: 200
+      message: OK
+- request:
+    body: postAction=CheckSub&ua=subliminal&ap=lanimilbus&fh=db7b097bb0865529&fs=438386538&fn=Common.Side.Effects.S01E01.1080p.WEB.h264.mkv&n24pref=1
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '139'
+      Content-Type:
+      - application/x-www-form-urlencoded
+      Cookie:
+      - PHPSESSID=keqtrdbh39071i06f1m39vum05
+      User-Agent:
+      - Subliminal/2.7
+    method: POST
+    uri: http://napisy24.pl/run/CheckSubAgent.php
+  response:
+    body:
+      string: OK-0||
+    headers:
+      Cache-Control:
+      - no-cache, must-revalidate
+      Connection:
+      - keep-alive
+      Content-Type:
+      - text/html; charset=UTF-8
+      Date:
+      - Fri, 21 Aug 2026 15:49:06 GMT
+      Expires:
+      - Thu, 19 Nov 1981 08:52:00 GMT
+      Pragma:
+      - no-cache
+      Server:
+      - nginx
+      Transfer-Encoding:
+      - chunked
+      X-Powered-By:
+      - PHP/7.4.33
+      - PleskLin
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Cookie:
+      - PHPSESSID=keqtrdbh39071i06f1m39vum05
+      User-Agent:
+      - Subliminal/2.7
+    method: GET
+    uri: http://napisy24.pl/libs/webapi.php?title=Common+Side+Effects+1x1
+  response:
+    body:
+      string: brak wynikow
+    headers:
+      Cache-Control:
+      - no-cache, must-revalidate
+      Connection:
+      - keep-alive
+      Content-Type:
+      - text/html; charset=UTF-8
+      Date:
+      - Fri, 21 Aug 2026 15:49:06 GMT
+      Server:
+      - nginx
+      Transfer-Encoding:
+      - chunked
+      X-Powered-By:
+      - PHP/7.4.33
+      - PleskLin
+    status:
+      code: 200
+      message: OK
+version: 1

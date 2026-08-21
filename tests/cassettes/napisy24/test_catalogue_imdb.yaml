@@ -1,0 +1,41 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - Subliminal/2.7
+    method: GET
+    uri: http://napisy24.pl/libs/webapi.php?imdb=tt0770828
+  response:
+    body:
+      string: "\n<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\n<subtitle>\n\t\t<id>71928</id>\n\t\t<title>Man
+        of Steel</title>\n\t\t<altTitle>Cz\u0142owiek ze stali</altTitle>\n\t\t<imdb>tt0770828</imdb>\n\t\t<year>2013</year>\n\t\t<release>BDRip.x264-Larceny;
+        720p.BluRay.x264-Felony; 1080p.BluRay.x264-SECTOR7; 1080p.BRRip.x264-YIFY;
+        720p.BRRip.x264-YIFY; 720p.BRRip.XviD.AC3-ViSiON; BRRip.XviD.AC3-ETRG; BRRip.XviD.AC3-SANTi;
+        720p.BRRip.x264.AC3-EVO</release>\n\t\t<language>pl</language>\n\t\t<cd>1</cd>\n\t\t<time>02:23:03|||</time>\n\t\t<size>1296488601|||</size>\n\t\t<fps>23.976</fps>\n\t\t<resolution>720x300</resolution>\n\t\t<author>sinu6</author>\n\t\t<rating>0.0000</rating>\n</subtitle>\n\n"
+    headers:
+      Cache-Control:
+      - no-cache, must-revalidate
+      Connection:
+      - keep-alive
+      Content-Type:
+      - text/html; charset=UTF-8
+      Date:
+      - Fri, 21 Aug 2026 15:45:39 GMT
+      Server:
+      - nginx
+      Transfer-Encoding:
+      - chunked
+      X-Powered-By:
+      - PHP/7.4.33
+      - PleskLin
+    status:
+      code: 200
+      message: OK
+version: 1
