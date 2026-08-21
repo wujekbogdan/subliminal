@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import os
 from dataclasses import dataclass, replace
 from http import HTTPStatus
 from pathlib import Path
@@ -9,6 +10,7 @@ from zipfile import ZipFile
 
 import pytest
 from babelfish import Language  # type: ignore[import-untyped]
+from vcr import VCR  # type: ignore[import-untyped]
 
 from subliminal.exceptions import (
     AuthenticationError,
@@ -32,6 +34,15 @@ from subliminal.providers.napisy24 import (
     search_catalogue,
 )
 from subliminal.video import Episode, Movie
+
+# One cassette holds several hash searches, and they are POSTs to the same URL, so the body belongs in match_on.
+vcr = VCR(
+    path_transformer=lambda path: path + '.yaml',
+    record_mode=os.environ.get('VCR_RECORD_MODE', 'once'),
+    decode_compressed_response=True,
+    match_on=['method', 'scheme', 'host', 'port', 'path', 'query', 'body'],
+    cassette_library_dir=os.path.realpath(os.path.join('tests', 'cassettes', 'napisy24')),
+)
 
 
 @dataclass(frozen=True)
@@ -567,17 +578,6 @@ class TestNapisy24Provider:
         provider.session = StubSession(*responses)  # type: ignore[assignment]
         return provider
 
-    def test_finds_a_subtitle_by_the_hash_of_the_video(self, movies: dict[str, Movie]) -> None:
-        movie = movies['man_of_steel']
-        movie.hashes['napisy24'] = movie.hashes['opensubtitles']
-        archive = ServiceResponse.archive(('Man.Of.Steel.2013.720p.BRRip.x264.AC3-EVO.srt', ServiceResponse.SUBTITLE))
-        provider = self.provider(StubResponse(content=ServiceResponse.hash_search('hash_catalogue', archive)))
-
-        subtitles = provider.list_subtitles(movie, {Language('pol')})
-
-        assert [subtitle.id for subtitle in subtitles] == ['catalogue_id:71928']
-        assert subtitles[0].content == ServiceResponse.SUBTITLE
-
     def test_refuses_a_subtitle_that_names_another_title(self, episodes: dict[str, Episode]) -> None:
         # The recorded header names Man of Steel, and the video is an episode of Game of Thrones
         episode = episodes['got_s03e10']
@@ -608,40 +608,6 @@ class TestNapisy24Provider:
         assert [request['url'] for request in provider.session.requests] == [  # type: ignore[union-attr]
             'http://napisy24.pl/libs/webapi.php'
         ]
-
-    def test_finds_nothing_when_the_service_does_not_know_the_video(self, movies: dict[str, Movie]) -> None:
-        movie = movies['man_of_steel']
-        movie.hashes['napisy24'] = movie.hashes['opensubtitles']
-        provider = self.provider(
-            StubResponse(content=ServiceResponse.hash_search('hash_empty')),
-            StubResponse(content=b'brak wynikow'),
-        )
-
-        assert provider.list_subtitles(movie, {Language('pol')}) == []
-
-    def test_searches_the_catalogue_when_the_hash_search_returns_nothing(self, movies: dict[str, Movie]) -> None:
-        movie = movies['man_of_steel']
-        movie.hashes['napisy24'] = movie.hashes['opensubtitles']
-        provider = self.provider(
-            StubResponse(content=ServiceResponse.hash_search('hash_empty')),
-            StubResponse(content=ServiceResponse.catalogue_search('catalogue_movie')),
-        )
-
-        subtitles = provider.list_subtitles(movie, {Language('pol')})
-
-        assert [subtitle.id for subtitle in subtitles] == ['catalogue_id:71928']
-        assert subtitles[0].content is None
-
-    def test_downloads_the_archive_of_a_catalogue_subtitle(self, movies: dict[str, Movie]) -> None:
-        provider = self.provider(
-            StubResponse(content=ServiceResponse.catalogue_search('catalogue_movie')),
-            StubResponse(content=ServiceResponse.archive(('Man.Of.Steel.srt', ServiceResponse.SUBTITLE))),
-        )
-        subtitle = provider.list_subtitles(movies['man_of_steel'], {Language('pol')})[0]
-
-        provider.download_subtitle(subtitle)
-
-        assert subtitle.content == ServiceResponse.SUBTITLE
 
     def test_asks_for_no_archive_when_the_hash_search_already_sent_one(self, movies: dict[str, Movie]) -> None:
         movie = movies['man_of_steel']
@@ -679,3 +645,115 @@ class TestNapisy24Provider:
         )
 
         assert provider.list_subtitles(movie, {Language('pol')}) == []
+
+
+class TestNapisy24ProviderAgainstTheService:
+    """The seven recorded exchanges, one cassette for each.
+
+    Everything the service will not send on demand is unit tested against a stub session instead.
+    """
+
+    pytestmark = pytest.mark.integration
+
+    @vcr.use_cassette
+    def test_catalogue_imdb(self, movies: dict[str, Movie]) -> None:
+        with Napisy24Provider() as provider:
+            subtitles = provider.list_subtitles(movies['man_of_steel'], {Language('pol')})
+
+        assert [subtitle.id for subtitle in subtitles] == ['catalogue_id:71928']
+        # A record carries metadata only, so the download step is what fetches the archive
+        assert subtitles[0].content is None
+
+    def test_hash_catalogue(self, movies: dict[str, Movie]) -> None:
+        movie = movies['man_of_steel']
+        movie.hashes['napisy24'] = movie.hashes['opensubtitles']
+
+        with vcr.use_cassette('test_hash_catalogue') as cassette, Napisy24Provider() as provider:
+            subtitles = provider.list_subtitles(movie, {Language('pol')})
+
+            # The hash search already scores the maximum, so the catalogue search must not be sent
+            assert len(cassette.requests) == 1
+
+        assert [subtitle.id for subtitle in subtitles] == ['catalogue_id:71928']
+        assert subtitles[0].is_valid()
+
+    @vcr.use_cassette
+    def test_hash_pool(self) -> None:
+        # The service matches on the hash and the size, so the file name plays no part in the response.
+        earth = Movie(
+            'The.Day.the.Earth.Stood.Still.1951.1080p.BluRay.x264.mkv',
+            'The Day the Earth Stood Still',
+            year=1951,
+            size=1755960031,
+            hashes={'napisy24': 'aaf50071a286b8aa'},
+        )
+
+        with Napisy24Provider() as provider:
+            subtitles = provider.list_subtitles(earth, {Language('pol')})
+
+        assert [subtitle.id for subtitle in subtitles] == ['hash:aaf50071a286b8aa']
+        assert subtitles[0].page_link is None
+        # A MicroDVD subtitle counts frames, so it cannot be converted without the frame rate
+        assert subtitles[0].fps == 23.976
+        assert subtitles[0].is_valid()
+
+    @vcr.use_cassette
+    def test_hash_misses(self, episodes: dict[str, Episode]) -> None:
+        vengeance = Movie(
+            'Vengeance.2022.1080p.WEBRip.x264.mkv',
+            'Vengeance',
+            year=2022,
+            size=3758880200,
+            hashes={'napisy24': '7f614d32e583bc02'},
+        )
+        side_effects = Episode(
+            'Common.Side.Effects.S01E01.1080p.WEB.h264.mkv',
+            'Common Side Effects',
+            1,
+            1,
+            size=438386538,
+            hashes={'napisy24': 'db7b097bb0865529'},
+        )
+        known_film_without_a_subtitle = episodes['bbt_s07e05']
+        known_film_without_a_subtitle.hashes['napisy24'] = known_film_without_a_subtitle.hashes['bsplayer']
+
+        with Napisy24Provider() as provider:
+            after_a_miss = provider.list_subtitles(vengeance, {Language('pol')})
+            provider.list_subtitles(known_film_without_a_subtitle, {Language('pol')})
+            nothing_anywhere = provider.list_subtitles(side_effects, {Language('pol')})
+
+        assert after_a_miss != []
+        assert nothing_anywhere == []
+
+    @vcr.use_cassette
+    def test_catalogue_titles(self, episodes: dict[str, Episode]) -> None:
+        # A movie with no IMDB id is queried by title, and this title carries the bare `&` that breaks a strict parser
+        will_and_grace = Movie('Will.and.Grace.mkv', 'Will & Grace')
+
+        with Napisy24Provider() as provider:
+            by_season_and_episode = provider.list_subtitles(episodes['got_s03e10'], {Language('pol')})
+            with_an_ampersand = provider.list_subtitles(will_and_grace, {Language('pol')})
+
+        assert len(by_season_and_episode) == 4
+        assert with_an_ampersand != []
+
+    @vcr.use_cassette
+    def test_authentication_error(self, movies: dict[str, Movie]) -> None:
+        movie = movies['man_of_steel']
+        movie.hashes['napisy24'] = movie.hashes['opensubtitles']
+
+        with Napisy24Provider(password='wrong') as provider, pytest.raises(AuthenticationError):
+            provider.list_subtitles(movie, {Language('pol')})
+
+    @vcr.use_cassette
+    def test_download(self) -> None:
+        subtitle = Napisy24Subtitle.from_catalogue_record(Language('pol'), replace(EMPTY_RECORD, catalogue_id=71928))
+        deleted = Napisy24Subtitle.from_catalogue_record(Language('pol'), replace(EMPTY_RECORD, catalogue_id=999999999))
+
+        with Napisy24Provider() as provider:
+            provider.download_subtitle(subtitle)
+
+            with pytest.raises(ProviderError):
+                provider.download_subtitle(deleted)
+
+        assert subtitle.is_valid()
