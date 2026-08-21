@@ -57,6 +57,7 @@ def hash_opensubtitles(video_name: str) -> str | None:
 
 
 hash_functions: dict[str, HashFunc] = {
+    'napisy24': hash_opensubtitles,
     'opensubtitles': hash_opensubtitles,
     'opensubtitlesvip': hash_opensubtitles,
     'opensubtitlescom': hash_opensubtitles,
