@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import io
 import logging
+import os
 import re
 from dataclasses import dataclass
 from enum import Enum
@@ -34,20 +35,28 @@ from http import HTTPStatus
 from typing import TYPE_CHECKING, ClassVar
 from zipfile import BadZipFile, ZipFile
 
-from subliminal.exceptions import AuthenticationError, ProviderError, ServiceUnavailable
+from babelfish import Language  # type: ignore[import-untyped]
+from requests import Session
+
+from subliminal.exceptions import (
+    AuthenticationError,
+    NotInitializedProviderError,
+    ProviderError,
+    ServiceUnavailable,
+)
 from subliminal.matches import guess_matches
 from subliminal.subtitle import SUBTITLE_EXTENSIONS, Subtitle
 from subliminal.utils import decorate_imdb_id, ensure_list, safely_guessit, sanitize_id
 from subliminal.video import Episode
 
-from . import ParserBeautifulSoup
+from . import ParserBeautifulSoup, Provider
 
 if TYPE_CHECKING:
+    from collections.abc import Set
     from typing import Any, Protocol
 
-    from babelfish import Language  # type: ignore[import-untyped]
     from bs4 import Tag
-    from requests import Response, Session
+    from requests import Response
 
     from subliminal.video import Video
 
@@ -412,7 +421,7 @@ class CatalogueResponse:
 # Domain
 #
 # The rules that decide whether a subtitle belongs to a video.
-# This section knows the Video. It knows nothing about HTTP.
+# The domain knows the Video. It knows nothing about HTTP.
 # --------------------------------------------------------------------------------------------------
 
 
@@ -626,7 +635,7 @@ class Napisy24Subtitle(Subtitle):
 # Transport
 #
 # One function for each request the service takes, and each one returns bytes.
-# This section knows HTTP. It reads no text of the service, and it knows no Video.
+# The transport knows HTTP. It reads no text of the service, and it knows no Video.
 # --------------------------------------------------------------------------------------------------
 
 
@@ -731,3 +740,124 @@ def download_archive(session: Session, *, catalogue_id: int, timeout: int) -> by
     )
     check_response(response)
     return response.content
+
+
+# --------------------------------------------------------------------------------------------------
+# Provider
+#
+# Makes a search, reads the response with a parser, and applies the rules.
+# The provider knows HTTP and it knows the Video.
+# --------------------------------------------------------------------------------------------------
+
+
+class Napisy24Provider(Provider[Napisy24Subtitle]):
+    """Napisy24 provider."""
+
+    languages: ClassVar[Set[Language]] = {Language('pol')}
+
+    session: Session | None
+
+    def __init__(
+        self,
+        # Search needs credentials.
+        # Other tools (Bazarr, Sub-Zero and Stremio addons) use them too.
+        # They are technically a secret, but in reality they are public.
+        # The idea is that the credentials are bound to a program (like subliminal), not to a user of that program.
+        # So, even though it feels odd, it's OK to hardcode these credentials in the provider source code.
+        # These credentials are NOT a napisy24.pl forum login and password.
+        # The only way to get API credentials is a PM to the napisy24.pl admin:
+        # https://forum.napisy24.pl/viewtopic.php?f=9&t=142
+        username: str = 'subliminal',
+        password: str = 'lanimilbus',  # noqa: S107
+        timeout: int = 10,
+    ) -> None:
+        self.username = username
+        self.password = password
+        self.timeout = timeout
+        self.session = None
+
+    def initialize(self) -> None:
+        """Open the session."""
+        self.session = Session()
+        self.session.headers['User-Agent'] = self.user_agent
+
+    def terminate(self) -> None:
+        """Close the session."""
+        if self.session is None:
+            raise NotInitializedProviderError
+
+        self.session.close()
+        self.session = None
+
+    def query(self, video: Video, language: Language) -> list[Napisy24Subtitle]:
+        """Search both collections for the subtitles of a video.
+
+        The hash search runs first, because a hash match already scores the maximum.
+        The catalogue search runs only when the hash search returns nothing.
+
+        :param video: the video to search subtitles for.
+        :type video: :class:`~subliminal.video.Video`
+        :param language: language to assign to the subtitles.
+        :type language: :class:`~babelfish.language.Language`
+        :return: the subtitles found for the video.
+        :rtype: list[Napisy24Subtitle]
+
+        """
+        if self.session is None:
+            raise NotInitializedProviderError
+
+        subtitle = self._search_by_hash(self.session, video, language)
+        if subtitle is not None:
+            return [subtitle]
+
+        return self._search_catalogue(self.session, video, language)
+
+    def list_subtitles(self, video: Video, languages: Set[Language]) -> list[Napisy24Subtitle]:
+        """List all the subtitles for the video."""
+        return [subtitle for language in languages for subtitle in self.query(video, language)]
+
+    def _search_by_hash(self, session: Session, video: Video, language: Language) -> Napisy24Subtitle | None:
+        """Search both collections by the hash of the video file, and read the subtitle it returns."""
+        video_hash = video.hashes.get(PROVIDER_NAME)
+        if video_hash is None or video.size is None:
+            return None
+
+        content = search_by_hash(
+            session,
+            username=self.username,
+            password=self.password,
+            video_hash=video_hash,
+            size=video.size,
+            name=os.path.basename(video.name),
+            timeout=self.timeout,
+        )
+        response = HashResponse.from_response(content)
+        if response is None:
+            return None
+
+        if not VideoIdentity(video).accepts_hash_response(response):
+            logger.warning('The hash search returned a subtitle for another title, IMDB id %s', response.imdb_id)
+            return None
+
+        subtitle_content = read_archive(response.archive)
+        if subtitle_content is None:
+            return None
+
+        subtitle = Napisy24Subtitle.from_hash_response(language, response, video_hash=video_hash)
+        subtitle.set_content(subtitle_content)
+        return subtitle
+
+    def _search_catalogue(self, session: Session, video: Video, language: Language) -> list[Napisy24Subtitle]:
+        """Search the catalogue and build a subtitle for each record that matches the video.
+
+        A record is dropped when its language is not the one asked for, or when its IMDB id names another title.
+        A title query returns every title the service matched, so both filters are needed.
+        """
+        content = search_catalogue(session, parameters=CatalogueQuery(video).parameters, timeout=self.timeout)
+        identity = VideoIdentity(video)
+
+        return [
+            Napisy24Subtitle.from_catalogue_record(language, record)
+            for record in CatalogueResponse.from_response(content).records
+            if record.language == language.alpha2 and identity.accepts_catalogue_record(record)
+        ]

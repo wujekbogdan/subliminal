@@ -4,18 +4,24 @@ import io
 from dataclasses import dataclass, replace
 from http import HTTPStatus
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 from zipfile import ZipFile
 
 import pytest
 from babelfish import Language  # type: ignore[import-untyped]
 
-from subliminal.exceptions import AuthenticationError, ProviderError, ServiceUnavailable
+from subliminal.exceptions import (
+    AuthenticationError,
+    NotInitializedProviderError,
+    ProviderError,
+    ServiceUnavailable,
+)
 from subliminal.providers.napisy24 import (
     CatalogueQuery,
     CatalogueRecord,
     CatalogueResponse,
     HashResponse,
+    Napisy24Provider,
     Napisy24Subtitle,
     TitleMetadata,
     VideoIdentity,
@@ -25,10 +31,7 @@ from subliminal.providers.napisy24 import (
     search_by_hash,
     search_catalogue,
 )
-from subliminal.video import Movie
-
-if TYPE_CHECKING:
-    from subliminal.video import Episode
+from subliminal.video import Episode, Movie
 
 
 @dataclass(frozen=True)
@@ -40,10 +43,13 @@ class StubResponse:
 
 
 class StubSession:
-    """A session that records every request and answers each one the same way."""
+    """A session that records every request and answers the given responses in order.
 
-    def __init__(self, response: StubResponse | None = None) -> None:
-        self.response = response if response is not None else StubResponse()
+    The last response answers every request that follows it.
+    """
+
+    def __init__(self, *responses: StubResponse) -> None:
+        self.responses = responses or (StubResponse(),)
         self.requests: list[dict[str, Any]] = []
 
     def post(self, url: str, **fields: Any) -> StubResponse:
@@ -54,7 +60,7 @@ class StubSession:
 
     def _record(self, **request: Any) -> StubResponse:
         self.requests.append(request)
-        return self.response
+        return self.responses[min(len(self.requests), len(self.responses)) - 1]
 
 
 class TestCheckResponse:
@@ -180,6 +186,18 @@ class ServiceResponse:
     def catalogue_search(cls, name: str) -> bytes:
         """Read the response of the catalogue search, exactly as the service sent it."""
         return (cls.DATA_DIR / f'{name}.xml').read_bytes()
+
+    @staticmethod
+    def catalogue_record(*, language: str, imdb_id: str) -> bytes:
+        """Build a catalogue response that holds one record, with only the fields a filter reads.
+
+        The service writes ``pl`` or ``en`` in the language element, and every recorded response holds ``pl``.
+        An English record has to be written out to test that it is dropped.
+        """
+        return (
+            f'<subtitles><subtitle><id>71928</id><language>{language}</language>'
+            f'<imdb>{imdb_id}</imdb></subtitle></subtitles>'
+        ).encode()
 
     @staticmethod
     def archive(*members: tuple[str, bytes]) -> bytes:
@@ -521,3 +539,112 @@ class TestNapisy24SubtitleFromCatalogueSearch:
 
         assert subtitle.get_matches(video) == {'title', 'year', 'country', 'fps'}
         assert subtitle.fps == 23.976
+
+
+class TestNapisy24Provider:
+    def test_drops_every_language_but_polish(self) -> None:
+        assert Napisy24Provider.check_languages({Language('pol'), Language('eng')}) == {Language('pol')}
+
+    def test_refuses_to_terminate_before_it_holds_a_session(self) -> None:
+        with pytest.raises(NotInitializedProviderError):
+            Napisy24Provider().terminate()
+
+    def test_holds_a_session_only_while_it_is_in_use(self) -> None:
+        with Napisy24Provider() as provider:
+            assert provider.session is not None
+
+        assert provider.session is None
+
+    def test_serves_a_video_that_carries_no_hash(self, movies: dict[str, Movie]) -> None:
+        # The catalogue search needs no video file, so a video with no hash must still reach the provider
+        assert Napisy24Provider.check(movies['enders_game']) is True
+
+    @staticmethod
+    def provider(*responses: StubResponse) -> Napisy24Provider:
+        """A provider whose session answers the given responses in order."""
+        provider = Napisy24Provider()
+        provider.session = StubSession(*responses)  # type: ignore[assignment]
+        return provider
+
+    def test_finds_a_subtitle_by_the_hash_of_the_video(self, movies: dict[str, Movie]) -> None:
+        movie = movies['man_of_steel']
+        movie.hashes['napisy24'] = movie.hashes['opensubtitles']
+        content = b'1\n00:00:49,591 --> 00:00:53,011\nx\n'
+        archive = ServiceResponse.archive(('Man.Of.Steel.2013.720p.BRRip.x264.AC3-EVO.srt', content))
+        provider = self.provider(StubResponse(content=ServiceResponse.hash_search('hash_catalogue', archive)))
+
+        subtitles = provider.list_subtitles(movie, {Language('pol')})
+
+        assert [subtitle.id for subtitle in subtitles] == ['catalogue_id:71928']
+        assert subtitles[0].content == content
+
+    def test_refuses_a_subtitle_that_names_another_title(self, episodes: dict[str, Episode]) -> None:
+        # The recorded header names Man of Steel, and the video is an episode of Game of Thrones
+        episode = episodes['got_s03e10']
+        episode.hashes['napisy24'] = episode.hashes['opensubtitles']
+        archive = ServiceResponse.archive(('Mhysa.srt', b'1\n00:00:01,000 --> 00:00:02,000\nx\n'))
+        provider = self.provider(
+            StubResponse(content=ServiceResponse.hash_search('hash_catalogue', archive)),
+            StubResponse(content=b'brak wynikow'),
+        )
+
+        assert provider.list_subtitles(episode, {Language('pol')}) == []
+
+    def test_refuses_to_search_before_it_holds_a_session(self, movies: dict[str, Movie]) -> None:
+        with pytest.raises(NotInitializedProviderError):
+            Napisy24Provider().list_subtitles(movies['man_of_steel'], {Language('pol')})
+
+    def test_searches_only_the_catalogue_for_a_video_that_carries_no_hash(self, movies: dict[str, Movie]) -> None:
+        provider = self.provider(StubResponse(content=b'brak wynikow'))
+
+        provider.list_subtitles(movies['enders_game'], {Language('pol')})
+
+        assert [request['url'] for request in provider.session.requests] == [  # type: ignore[union-attr]
+            'http://napisy24.pl/libs/webapi.php'
+        ]
+
+    def test_finds_nothing_when_the_service_does_not_know_the_video(self, movies: dict[str, Movie]) -> None:
+        movie = movies['man_of_steel']
+        movie.hashes['napisy24'] = movie.hashes['opensubtitles']
+        provider = self.provider(
+            StubResponse(content=ServiceResponse.hash_search('hash_empty')),
+            StubResponse(content=b'brak wynikow'),
+        )
+
+        assert provider.list_subtitles(movie, {Language('pol')}) == []
+
+    def test_searches_the_catalogue_when_the_hash_search_returns_nothing(self, movies: dict[str, Movie]) -> None:
+        movie = movies['man_of_steel']
+        movie.hashes['napisy24'] = movie.hashes['opensubtitles']
+        provider = self.provider(
+            StubResponse(content=ServiceResponse.hash_search('hash_empty')),
+            StubResponse(content=ServiceResponse.catalogue_search('catalogue_movie')),
+        )
+
+        subtitles = provider.list_subtitles(movie, {Language('pol')})
+
+        assert [subtitle.id for subtitle in subtitles] == ['catalogue_id:71928']
+        assert subtitles[0].content is None
+
+    def test_drops_a_catalogue_record_in_another_language(self, movies: dict[str, Movie]) -> None:
+        response = StubResponse(content=ServiceResponse.catalogue_record(language='en', imdb_id='tt0770828'))
+        provider = self.provider(response)
+
+        assert provider.list_subtitles(movies['enders_game'], {Language('pol')}) == []
+
+    def test_drops_a_catalogue_record_that_names_another_title(self, movies: dict[str, Movie]) -> None:
+        response = StubResponse(content=ServiceResponse.catalogue_record(language='pl', imdb_id='tt0944947'))
+        provider = self.provider(response)
+
+        assert provider.list_subtitles(movies['man_of_steel'], {Language('pol')}) == []
+
+    def test_finds_nothing_when_the_archive_holds_no_subtitle(self, movies: dict[str, Movie]) -> None:
+        movie = movies['man_of_steel']
+        movie.hashes['napisy24'] = movie.hashes['opensubtitles']
+        archive = ServiceResponse.archive(('Napisy24.pl.url', b'[InternetShortcut]\nURL=http://napisy24.pl/\n'))
+        provider = self.provider(
+            StubResponse(content=ServiceResponse.hash_search('hash_catalogue', archive)),
+            StubResponse(content=b'brak wynikow'),
+        )
+
+        assert provider.list_subtitles(movie, {Language('pol')}) == []
