@@ -751,22 +751,30 @@ def download_archive(session: Session, *, catalogue_id: int, timeout: int) -> by
 
 
 class Napisy24Provider(Provider[Napisy24Subtitle]):
-    """Napisy24 provider."""
+    """Napisy24 Provider.
+
+    napisy24.pl needs an API username and password, and the provider comes with defaults, so credentials are optional.
+
+    The only way to get API credentials is a PM to the napisy24.pl admin:
+    https://forum.napisy24.pl/viewtopic.php?f=9&t=142
+    Notice: a forum username and password is NOT the same as API credentials.
+
+    :param str username: napisy24 API username (not mandatory)
+    :param str password: napisy24 API password (not mandatory)
+    :param int timeout: timeout in seconds. Default to 10.
+
+    """
 
     languages: ClassVar[Set[Language]] = {Language('pol')}
 
     session: Session | None
 
+    # The idea is that the credentials are bound to a program (like subliminal), not to a user of that program.
+    # Other tools (Bazarr, Sub-Zero and Stremio addons) use them too.
+    # They are technically a secret, but in reality they are public.
+    # So, even though it feels odd, it's OK to hardcode these credentials in the provider source code.
     def __init__(
         self,
-        # Search needs credentials.
-        # Other tools (Bazarr, Sub-Zero and Stremio addons) use them too.
-        # They are technically a secret, but in reality they are public.
-        # The idea is that the credentials are bound to a program (like subliminal), not to a user of that program.
-        # So, even though it feels odd, it's OK to hardcode these credentials in the provider source code.
-        # These credentials are NOT a napisy24.pl forum login and password.
-        # The only way to get API credentials is a PM to the napisy24.pl admin:
-        # https://forum.napisy24.pl/viewtopic.php?f=9&t=142
         username: str = 'subliminal',
         password: str = 'lanimilbus',  # noqa: S107
         timeout: int = 10,
