@@ -30,10 +30,11 @@ import logging
 import re
 from dataclasses import dataclass
 from enum import Enum
+from http import HTTPStatus
 from typing import TYPE_CHECKING, ClassVar
 from zipfile import BadZipFile, ZipFile
 
-from subliminal.exceptions import AuthenticationError, ProviderError
+from subliminal.exceptions import AuthenticationError, ProviderError, ServiceUnavailable
 from subliminal.matches import guess_matches
 from subliminal.subtitle import SUBTITLE_EXTENSIONS, Subtitle
 from subliminal.utils import decorate_imdb_id, ensure_list, safely_guessit, sanitize_id
@@ -42,10 +43,11 @@ from subliminal.video import Episode
 from . import ParserBeautifulSoup
 
 if TYPE_CHECKING:
-    from typing import Protocol
+    from typing import Any, Protocol
 
     from babelfish import Language  # type: ignore[import-untyped]
     from bs4 import Tag
+    from requests import Response, Session
 
     from subliminal.video import Video
 
@@ -189,11 +191,14 @@ class HashResponse:
 def read_archive(archive: bytes) -> bytes | None:
     """Extract the subtitle from a ZIP archive that the service sent.
 
-    The archive can hold a ``Napisy24.pl.url`` shortcut next to the subtitle.
+    An archive holds one subtitle, and next to it there can be a ``Napisy24.pl.url`` shortcut.
     The first member is then not the subtitle, so the member is chosen by extension.
 
+    A catalogue entry for a range of episodes is the exception: its archive holds one subtitle for each episode.
+    Only the first subtitle is read, so such an entry serves the first episode of the range and no other.
+
     :param bytes archive: the ZIP archive.
-    :return: the content of the subtitle, or None when no member is a subtitle.
+    :return: the content of the first subtitle, or None when no member is a subtitle.
     :rtype: bytes | None
     :raise: :class:`~subliminal.exceptions.ProviderError` if the bytes are not a ZIP archive.
 
@@ -205,6 +210,7 @@ def read_archive(archive: bytes) -> bytes | None:
                 logger.warning('No subtitle in the archive, it holds these files: %r', zip_file.namelist())
                 return None
 
+            # TODO: read every subtitle of a range of episodes, and give each one the episode it belongs to
             return zip_file.read(names[0])
 
     except BadZipFile as error:
@@ -614,3 +620,114 @@ class Napisy24Subtitle(Subtitle):
     def get_matches(self, video: Video) -> set[str]:
         """Get the matches against the `video`."""
         return self.matcher.get_matches(video)
+
+
+# --------------------------------------------------------------------------------------------------
+# Transport
+#
+# One function for each request the service takes, and each one returns bytes.
+# This section knows HTTP. It reads no text of the service, and it knows no Video.
+# --------------------------------------------------------------------------------------------------
+
+
+def check_response(response: Response) -> None:
+    """Raise when the status of the response is not ``200``.
+
+    Status ``503`` discards the provider for the rest of the run, and any other bad status fails one video only.
+
+    :raise: :class:`~subliminal.exceptions.ServiceUnavailable` if the service is down,
+        :class:`~subliminal.exceptions.ProviderError` for any other status that is not ``200``.
+
+    """
+    if response.status_code == HTTPStatus.SERVICE_UNAVAILABLE:
+        msg = 'The service is unavailable'
+        raise ServiceUnavailable(msg)
+
+    if response.status_code != HTTPStatus.OK:
+        msg = f'The service sent status {response.status_code}'
+        raise ProviderError(msg)
+
+
+def search_by_hash(
+    session: Session,
+    *,
+    username: str,
+    password: str,
+    video_hash: str,
+    size: int,
+    name: str,
+    timeout: int,
+) -> bytes:
+    """Search the catalogue and the program pool for the video file itself.
+
+    :param int size: size of the video file, in bytes.
+    :param str name: base name of the video file, and not its path.
+    :param int timeout: seconds to wait for the service.
+    :return: the bytes that the service sent.
+    :rtype: bytes
+
+    """
+    # `n24pref=1` asks the service to prefer the catalogue copy when both collections hold the subtitle.
+    # The service takes four more parameters, and none of them is ever sent:
+    # - `md` is a second way to name the file, and it never works: a correct `md` with a wrong `fh` finds nothing.
+    # - `nl` asks for one language, and the service ignores it.
+    # - `licz` counts interest in a file, for the statistics of the service.
+    #   Subliminal can ask for the same video more than once, and every request would add to the count.
+    # - `tb` parameter, when present, regardless of its value, makes the service send a catalogue subtitle only.
+    #   It then ignores the program pool.
+    response = session.post(
+        'http://napisy24.pl/run/CheckSubAgent.php',
+        data={
+            'postAction': 'CheckSub',
+            'ua': username,
+            'ap': password,
+            'fh': video_hash,
+            'fs': size,
+            'fn': name,
+            'n24pref': 1,
+        },
+        timeout=timeout,
+    )
+    check_response(response)
+    return response.content
+
+
+def search_catalogue(session: Session, *, parameters: dict[str, str], timeout: int) -> bytes:
+    """Search the catalogue for the records of a video.
+
+    The service takes an IMDB id or a title, and never both.
+    An unknown parameter gives no error: it gives a well formed record for another title.
+
+    :param dict parameters: the request parameters, which name either the IMDB id or the title.
+    :param int timeout: seconds to wait for the service.
+    :return: the bytes that the service sent.
+    :rtype: bytes
+
+    """
+    response = session.get('http://napisy24.pl/libs/webapi.php', params=parameters, timeout=timeout)
+    check_response(response)
+    return response.content
+
+
+def download_archive(session: Session, *, catalogue_id: int, timeout: int) -> bytes:
+    """Download the archive that holds one catalogue subtitle.
+
+    The service sends 500 for an id the catalogue does not hold, and a subtitle that was deleted is the likely reason.
+
+    :param int catalogue_id: id of the subtitle in the catalogue.
+    :param int timeout: seconds to wait for the service.
+    :return: the ZIP archive that the service sent.
+    :rtype: bytes
+
+    """
+    # typ asks for SubRip in UTF-8, and sru is the only value the service honours for every subtitle.
+    # The Referer header is needed: without it the service would send a redirect and no archive.
+    params: dict[str, Any] = {'napisId': catalogue_id, 'typ': 'sru'}
+    response = session.get(
+        'http://napisy24.pl/run/pages/download.php',
+        params=params,
+        headers={'Referer': 'http://napisy24.pl/'},
+        timeout=timeout,
+    )
+    check_response(response)
+    return response.content

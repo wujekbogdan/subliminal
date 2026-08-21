@@ -1,15 +1,16 @@
 from __future__ import annotations
 
 import io
-from dataclasses import replace
+from dataclasses import dataclass, replace
+from http import HTTPStatus
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from zipfile import ZipFile
 
 import pytest
 from babelfish import Language  # type: ignore[import-untyped]
 
-from subliminal.exceptions import AuthenticationError, ProviderError
+from subliminal.exceptions import AuthenticationError, ProviderError, ServiceUnavailable
 from subliminal.providers.napisy24 import (
     CatalogueQuery,
     CatalogueRecord,
@@ -18,12 +19,127 @@ from subliminal.providers.napisy24 import (
     Napisy24Subtitle,
     TitleMetadata,
     VideoIdentity,
+    check_response,
+    download_archive,
     read_archive,
+    search_by_hash,
+    search_catalogue,
 )
 from subliminal.video import Movie
 
 if TYPE_CHECKING:
     from subliminal.video import Episode
+
+
+@dataclass(frozen=True)
+class StubResponse:
+    """What the transport reads from a response of the service."""
+
+    status_code: int = HTTPStatus.OK
+    content: bytes = b''
+
+
+class StubSession:
+    """A session that records every request and answers each one the same way."""
+
+    def __init__(self, response: StubResponse | None = None) -> None:
+        self.response = response if response is not None else StubResponse()
+        self.requests: list[dict[str, Any]] = []
+
+    def post(self, url: str, **fields: Any) -> StubResponse:
+        return self._record(method='POST', url=url, **fields)
+
+    def get(self, url: str, **fields: Any) -> StubResponse:
+        return self._record(method='GET', url=url, **fields)
+
+    def _record(self, **request: Any) -> StubResponse:
+        self.requests.append(request)
+        return self.response
+
+
+class TestCheckResponse:
+    @pytest.mark.parametrize(
+        ('status_code', 'error'),
+        [
+            pytest.param(HTTPStatus.SERVICE_UNAVAILABLE, ServiceUnavailable, id='the service is down'),
+            pytest.param(HTTPStatus.INTERNAL_SERVER_ERROR, ProviderError, id='the subtitle id is unknown'),
+            pytest.param(HTTPStatus.FOUND, ProviderError, id='a redirect, which the download sends with no Referer'),
+        ],
+    )
+    def test_refuses_a_status_that_carries_no_body(self, status_code: int, error: type[ProviderError]) -> None:
+        with pytest.raises(error) as raised:
+            check_response(StubResponse(status_code))
+
+        # ServiceUnavailable discards the provider and ProviderError does not, so the exact type matters
+        assert type(raised.value) is error
+
+
+class TestSearchByHash:
+    def test_posts_the_account_and_the_video_file_and_nothing_else(self) -> None:
+        session = StubSession(StubResponse(content=b'OK-0'))
+
+        content = search_by_hash(
+            session,
+            username='subliminal',
+            password='lanimilbus',
+            video_hash='5b8f8f4e41ccb21e',
+            size=7033732714,
+            name='man.of.steel.2013.720p.bluray.x264-felony.mkv',
+            timeout=10,
+        )
+
+        assert content == b'OK-0'
+        assert session.requests == [
+            {
+                'method': 'POST',
+                'url': 'http://napisy24.pl/run/CheckSubAgent.php',
+                'data': {
+                    'postAction': 'CheckSub',
+                    'ua': 'subliminal',
+                    'ap': 'lanimilbus',
+                    'fh': '5b8f8f4e41ccb21e',
+                    'fs': 7033732714,
+                    'fn': 'man.of.steel.2013.720p.bluray.x264-felony.mkv',
+                    'n24pref': 1,
+                },
+                'timeout': 10,
+            }
+        ]
+
+
+class TestSearchCatalogue:
+    def test_gets_the_parameters_that_the_query_built(self) -> None:
+        session = StubSession(StubResponse(content=b'brak wynikow'))
+
+        content = search_catalogue(session, parameters={'imdb': 'tt0770828'}, timeout=10)
+
+        assert content == b'brak wynikow'
+        assert session.requests == [
+            {
+                'method': 'GET',
+                'url': 'http://napisy24.pl/libs/webapi.php',
+                'params': {'imdb': 'tt0770828'},
+                'timeout': 10,
+            }
+        ]
+
+
+class TestDownloadArchive:
+    def test_asks_for_subrip_and_sends_the_referer_that_the_service_wants(self) -> None:
+        session = StubSession(StubResponse(content=b'the archive'))
+
+        content = download_archive(session, catalogue_id=71928, timeout=10)
+
+        assert content == b'the archive'
+        assert session.requests == [
+            {
+                'method': 'GET',
+                'url': 'http://napisy24.pl/run/pages/download.php',
+                'params': {'napisId': 71928, 'typ': 'sru'},
+                'headers': {'Referer': 'http://napisy24.pl/'},
+                'timeout': 10,
+            }
+        ]
 
 
 class ServiceResponse:
